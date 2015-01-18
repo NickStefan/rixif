@@ -33,6 +33,8 @@ var TableCollection = Backbone.Collection.extend({
 
 var RowCollection = Backbone.Collection.extend({});
 
+var appEvents = _.extend({},Backbone.Events);
+
 var tablecollection = new TableCollection();
 _.times(300,function(){
   var row = new RowModel({

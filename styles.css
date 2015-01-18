@@ -1,0 +1,26 @@
+
+table {
+  border-collapse: collapse;
+}
+
+table, th, td {
+  border: solid 1px black;
+}
+
+.selected-cell {
+  border: solid 2px red;
+  padding: 1px !important;
+}
+
+.cell-view {
+  width: 80px;
+  padding: 2px;
+  margin: 5px;
+}
+.cell-edit {
+  padding: 0px;
+  margin: 2px -2px 2px -2px;
+  height: 105%;
+  border: none 0px black;
+  width: 105%;
+}
