@@ -5,14 +5,15 @@ var CellModel = Backbone.Model.extend({
   }
 });
 
-var RowModel = Backbone.Model.extend({
-  initialize: function(options){
-  }
-});
+var RowModel = Backbone.Model.extend({});
 
 var AppModel = Backbone.Model.extend({});
 
 var TableCollection = Backbone.Collection.extend({
+  initialize: function(){
+    this.on('addRow',this.addRow);
+    this.on('addCol',this.addCol);
+  },
   addRow: function(){
     var row = new RowModel({
       cells: new RowCollection(),

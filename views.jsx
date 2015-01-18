@@ -1,11 +1,18 @@
 /*** @jsx React.DOM */
 
 var Ribbon = React.createClass({
+
+  addRow: function(e){
+    this.props.rows.trigger('addRow');
+  },
+  addCol: function(e){
+    this.props.rows.trigger('addCol');
+  },
   render: function(){
     return (
       <div>
-        <button class="add-row">new row</button>
-        <button class="add-col">new col</button>
+        <button onClick={this.addRow}> new row </button>
+        <button onClick={this.addCol}> new col </button>
       </div>
     )
   }
@@ -31,7 +38,7 @@ var Cell = React.createClass({
 var Row = React.createClass({
   render: function(){
     var cells =  this.props.row.get('cells').map(function(cellData,index){
-      return <Cell cellModel={cellData} />
+      return <Cell key={cellData.cid} cellModel={cellData} />
     });
     return (
       <tr>
@@ -43,11 +50,17 @@ var Row = React.createClass({
 
 var Table = React.createClass({
 
+  componentWillMount: function(){
+    this.props.rows.on('addRow addCol add remove change', function(){
+      this.forceUpdate()
+    }.bind(this));
+  },
+
   render: function(){
 
     var rows = this.props.rows.map(function(rowData,rowIndex){
       return (
-        < Row row={rowData} index={rowIndex} />
+        < Row key={rowData.cid} row={rowData} index={rowIndex} />
       )
     });
 
