@@ -63,9 +63,11 @@ var Cell = React.createClass({
     this.forceUpdate();
   },
   enterEditMode: function(){
-    this.setState({editing: true});
-    appEvents.trigger('closeOtherEditModeCells');
-    this.forceUpdate();
+    if (!this.state.editing){
+      this.setState({editing: true});
+      appEvents.trigger('closeOtherEditModeCells');
+      this.forceUpdate();     
+    }
   },
   closeEditMode: function(){
     if (this.state.editing){
@@ -113,7 +115,7 @@ var Row = React.createClass({
     });
     return (
       <tr>
-        <th>{this.props.index}</th> {cells}
+        <th className={"r-spreadsheet"}>{this.props.index + 1 }</th> {cells}
       </tr>
     )
   }
@@ -136,11 +138,11 @@ var Table = React.createClass({
     var rowsHeaders = this.props.rows.at(0).get('cells').slice(0);
     rowsHeaders.push("")
     rowsHeaders = rowsHeaders.map(function(row,colIndex){
-      return <th> {getAlphaHeader(colIndex)} </th>
+      return <th className={"r-spreadsheet"}> {getAlphaHeader(colIndex)} </th>
     });
 
     return (
-      <table>
+      <table className={"r-spreadsheet"}>
         <thead>
           <tr>
 
