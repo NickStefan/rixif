@@ -176,6 +176,10 @@ var Table = React.createClass({
       this.setState({cellInEditMode: bool});
     },this);
   },
+  navigateDebounced: function(e){
+    var fn = _.debounce(this.navigate,250,true);
+    fn.call(this,e);
+  },
   navigate: function(e){
     var position = _.extend({},this.state.position);
     if (e.key === 'ArrowLeft' && !this.state.cellInEditMode){
@@ -218,7 +222,7 @@ var Table = React.createClass({
     });
 
     return (
-      <table tabIndex={-1} onKeyDown={this.navigate} className={"r-spreadsheet"}>
+      <table tabIndex={-1} onKeyDown={this.navigateDebounced} className={"r-spreadsheet"}>
         <thead>
           <tr>
 
