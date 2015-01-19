@@ -41,6 +41,8 @@ tbody > tr > th.r-spreadsheet {
   border-left: 1px solid #CCC;
   -webkit-box-shadow: 1px 0px 0px 0px rgba(0, 0, 0, 0.4);
   box-shadow: 1px 0px 0px 0px rgba(0, 0, 0, 0.4);
+  font-weight: 100;
+  padding: 0 7px 0 7px;
 }
 
 .selected-cell {

@@ -40,7 +40,7 @@ _.times(300,function(){
   var row = new RowModel({
     cells: new RowCollection()
   });
-  _.times(5,function(){
+  _.times(10,function(){
     row.get('cells').add(new CellModel());
   });
   tablecollection.add(row);

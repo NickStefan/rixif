@@ -1,6 +1,7 @@
 
 // utility functions
 var getAlphaHeader = function(num){
+  if (num > 25) return null;
   var alpha = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   return alpha[num];
 }
@@ -87,7 +88,7 @@ var Cell = React.createClass({
     var cellView = this.state.editing ? cellEdit : cellValue;
     
     /* set dom event handlers based on state */
-    var cellClick;
+    var cellClick, cellMenu;
     if (this.state.selected){
       cellClick = this.enterEditMode;
     } else {
