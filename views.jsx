@@ -9,7 +9,6 @@ var getAlphaHeader = function(num){
 var classSet = React.addons.classSet;
 
 
-
 // React Views
 /* views are slaves to the models and state, just like idiomatic backbone.
  * can still reason a view tree like backbone.
@@ -37,6 +36,12 @@ var Cell = React.createClass({
     };
   },
   componentWillMount: function(){
+    /* track cell position */
+    this.setState({position:{
+      col: this.props.colIndex,
+      row: this.props.rowIndex
+    }});
+
     /* set css attributes with an object */
     this.cellStyle = {};
     appEvents.on('colorCell',function(color){
@@ -45,16 +50,34 @@ var Cell = React.createClass({
         this.forceUpdate();
     },this);
 
+    /* UI states */
+    appEvents.on('enterEditMode',function(){
+      if (this.state.selected){
+        this.enterEditMode();
+      }
+    },this);
+
+    appEvents.on('moveSelected',function(position){
+      if (position.row === this.state.position.row && position.col === this.state.position.col){
+        this.selectCell();
+      }
+    },this);
+
     appEvents.on('closeOtherEditModeCells',function(){
       this.closeEditMode();
     },this);
 
     appEvents.on('unSelectOtherCells',function(){
-      this.unSelectCell();
+      if (this.state.selected){
+        this.unSelectCell();
+      }
     },this);
   },
   selectCell: function(){
+    var position = _.extend({},this.state.position);
     appEvents.trigger('unSelectOtherCells');
+    appEvents.trigger('setSelectedPosition',position);
+    appEvents.trigger('reFocus');
     this.setState({selected: true});
     this.forceUpdate();
   },
@@ -67,18 +90,23 @@ var Cell = React.createClass({
     if (!this.state.editing){
       this.setState({editing: true});
       appEvents.trigger('closeOtherEditModeCells');
+      appEvents.trigger('cellInEditMode',true);
       this.forceUpdate();     
     }
   },
   closeEditMode: function(){
     if (this.state.editing){
       this.setState({editing: false});
+      appEvents.trigger('reFocus');
+      appEvents.trigger('cellInEditMode',false);
       this.forceUpdate();
     }
   },
   checkCell: function(e){
     if (e.key === 'Enter'){
       this.props.cellModel.set('value',e.target.value);
+      this.closeEditMode();
+    } else if (e.key === 'Escape'){
       this.closeEditMode();
     }
   },
@@ -111,8 +139,11 @@ var Cell = React.createClass({
 
 var Row = React.createClass({
   render: function(){
+    var self = this;
     var cells =  this.props.row.get('cells').map(function(cellData,index){
-      return <Cell key={cellData.cid} cellModel={cellData} />
+      return (
+        <Cell key={cellData.cid} colIndex={index} rowIndex={self.props.index} cellModel={cellData} />
+      )
     });
     return (
       <tr>
@@ -123,16 +154,60 @@ var Row = React.createClass({
 });
 
 var Table = React.createClass({
+  getInitialState: function(){
+    return {
+      cellInEditMode: false
+    };
+  },
   componentWillMount: function(){
     this.props.rows.on('addRow addCol add remove change', function(){
       this.forceUpdate()
     }.bind(this));
-  },
 
+    appEvents.on('setSelectedPosition',function(position){
+      this.setState({position: position});
+    },this);
+
+    appEvents.on('reFocus',function(){
+      this.getDOMNode().focus();
+    },this);
+
+    appEvents.on('cellInEditMode',function(bool){
+      this.setState({cellInEditMode: bool});
+    },this);
+  },
+  navigate: function(e){
+    var position = _.extend({},this.state.position);
+    if (e.key === 'ArrowLeft' && !this.state.cellInEditMode){
+      e.stopPropagation();
+      e.preventDefault();
+      position.col -= 1;
+      appEvents.trigger('moveSelected',position);
+    } else if (e.key === 'ArrowRight' && !this.state.cellInEditMode){
+      e.stopPropagation();
+      e.preventDefault();
+      position.col += 1;
+      appEvents.trigger('moveSelected',position);
+    } else if (e.key === 'ArrowUp' && !this.state.cellInEditMode){
+      e.stopPropagation();
+      e.preventDefault();
+      position.row -= 1;
+      appEvents.trigger('moveSelected',position);
+    } else if (e.key === 'ArrowDown' && !this.state.cellInEditMode){
+      e.stopPropagation();
+      e.preventDefault();
+      position.row += 1;
+      appEvents.trigger('moveSelected',position);
+    } else if (e.key === 'Enter' && !this.state.cellInEditMode){
+      e.stopPropagation();
+      e.preventDefault();
+      appEvents.trigger('enterEditMode');
+    }
+  },
   render: function(){
     var rows = this.props.rows.map(function(rowData,rowIndex){
       return (
-        < Row key={rowData.cid} row={rowData} index={rowIndex} />
+        <Row key={rowData.cid} row={rowData} index={rowIndex} />
       )
     });
 
@@ -143,7 +218,7 @@ var Table = React.createClass({
     });
 
     return (
-      <table className={"r-spreadsheet"}>
+      <table tabIndex={-1} onKeyDown={this.navigate} className={"r-spreadsheet"}>
         <thead>
           <tr>
 
