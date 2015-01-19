@@ -14,6 +14,16 @@ var classSet = React.addons.classSet;
  * can still reason a view tree like backbone.
  * huge performance improvements due to the virtual DOM diffing.
  * can simplify code based on these improvements:
+  > simple, composition based, mixins for viewClasses.
+  > mixins dont need to store and apply overwritten methods of a defined class
+    can define multiple lifecycle methods in multiple mixins and all will run
+    (both will be called if a mixin and class definition have same method name)
+    (exceptions:
+      cant double define render method
+      cant set same state name in getInitialState
+      cant define same _custom_ methods amongst multiple mixins
+    )
+  > mixins can include other mixins
   > jsx components are resusable in other components (like angular directives)
   > any ui change is simply rerendered rather than dealing with jquery hacks.
   > this greatly simplifies ui updates.
@@ -177,7 +187,7 @@ var Table = React.createClass({
     },this);
   },
   navigateDebounced: function(e){
-    var fn = _.debounce(this.navigate,250,true);
+    var fn = _.debounce(this.navigate,500,true);
     fn.call(this,e);
   },
   navigate: function(e){
