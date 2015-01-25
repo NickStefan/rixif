@@ -89,19 +89,16 @@ var Cell = React.createClass({
     appEvents.trigger('setSelectedPosition',position);
     appEvents.trigger('reFocus');
     this.setState({selected: true});
-    this.forceUpdate();
   },
   unSelectCell: function(){
     this.setState({selected: false});
     this.setState({editing: false});
-    this.forceUpdate();
   },
   enterEditMode: function(){
     if (!this.state.editing){
       this.setState({editing: true});
       appEvents.trigger('closeOtherEditModeCells');
-      appEvents.trigger('cellInEditMode',true);
-      this.forceUpdate();     
+      appEvents.trigger('cellInEditMode',true);    
     }
   },
   closeEditMode: function(){
@@ -109,7 +106,6 @@ var Cell = React.createClass({
       this.setState({editing: false});
       appEvents.trigger('reFocus');
       appEvents.trigger('cellInEditMode',false);
-      this.forceUpdate();
     }
   },
   checkCell: function(e){
@@ -120,7 +116,14 @@ var Cell = React.createClass({
       this.closeEditMode();
     }
   },
-  render: function(){
+  shouldComponentUpdate: function(nextProps,nextState){
+    if (this.state.selected !== nextState.selected ||
+        this.state.editing !== nextState.editing) {
+      return true;
+    }
+    return false;
+  },
+   render: function(){
     var cellValue = this.props.cellModel.get('value');
     var cellEdit = <input autoFocus onKeyDown={this.checkCell} className={'cell-edit'} type='text' defaultValue={cellValue} />;
     var cellView = this.state.editing ? cellEdit : cellValue;
@@ -170,8 +173,8 @@ var Table = React.createClass({
     };
   },
   componentWillMount: function(){
-    this.props.rows.on('addRow addCol add remove change', function(){
-      this.forceUpdate()
+    this.props.rows.on('addRow addCol', function(){
+      this.forceUpdate();
     }.bind(this));
 
     appEvents.on('setSelectedPosition',function(position){
@@ -187,7 +190,7 @@ var Table = React.createClass({
     },this);
   },
   navigateDebounced: function(e){
-    var fn = _.debounce(this.navigate,500,true);
+    var fn = _.debounce(this.navigate,250,true);
     fn.call(this,e);
   },
   navigate: function(e){
@@ -254,14 +257,17 @@ var RibbonBar = React.createClass({
 
   addRow: function(e){
     this.props.rows.trigger('addRow');
+    appEvents.trigger('reFocus');
   },
   addCol: function(e){
     this.props.rows.trigger('addCol');
+    appEvents.trigger('reFocus');
   },
   colorCell: function(e){
     if (e.key === 'Enter'){
       appEvents.trigger('colorCell', e.target.value);
       e.target.value = "";
+      appEvents.trigger('reFocus');
     }
   },
   render: function(){
