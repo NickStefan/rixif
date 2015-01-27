@@ -14,13 +14,13 @@ gulp.task('browserify', function(){
   /* rx-spread-sheet-noRequire */
   gulp.src('src/js/noRequire.js')
   .pipe(browserify({transform: 'reactify'}))
-  .pipe(concat('rx-speed-sheet-noRequire.js'))
+  .pipe(concat('rxss-noRequire.js'))
   .pipe(gulp.dest('dist/js'));
 
   /* rx-spread-sheet for require */
-  gulp.src('src/js/rx-speed-sheet.js')
+  gulp.src('src/js/rxss.js')
   .pipe(browserify({transform: 'reactify'}))
-  .pipe(concat('rx-speed-sheet.js'))
+  .pipe(concat('rxss.js'))
   .pipe(gulp.dest('dist/js'));
 
 });
@@ -32,7 +32,7 @@ gulp.task('copy', function(){
   gulp.src('src/css/*')
   .pipe(gulp.dest('dist/css'));
 
-  gulp.src('dist/js/rx-speed-sheet.js')
+  gulp.src('dist/js/rxss.js')
   .pipe(rename('index.js'))
   .pipe(gulp.dest('./'));
 });

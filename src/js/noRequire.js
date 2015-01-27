@@ -1,3 +1,3 @@
 /* global exports for NoRequire dist */
-RXSPEEDSHEET = require('./components/app');
+RXSS = require('./components/app');
 React = require('react/dist/react-with-addons.min.js');

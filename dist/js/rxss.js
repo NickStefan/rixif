@@ -31,10 +31,10 @@ module.exports = APP;
 
 },{"react/dist/react-with-addons.min.js":1}],3:[function(require,module,exports){
 
-var RXSPEEDSHEET = require('./components/app');
+var RXSS = require('./components/app');
 var React = require('react/dist/react-with-addons.min.js');
 
-module.exports = RXSPEEDSHEET;
+module.exports = RXSS;
 
 
 

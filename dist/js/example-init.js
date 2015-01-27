@@ -30,13 +30,13 @@ module.exports = APP;
 
 
 },{"react/dist/react-with-addons.min.js":1}],3:[function(require,module,exports){
-var RXSPEEDSHEET = require('./components/app');
+var RXSS = require('./components/app');
 /* or with an with `$ npm install rx-speed-sheet` */
 // var RXSPEEDSHEET = require('rx-speed-sheet');
 
 var React = require('react/dist/react-with-addons.min.js');
 
-React.renderComponent(React.createElement(RXSPEEDSHEET, null), document.getElementById('rx-speed-sheet'));
+React.renderComponent(React.createElement(RXSS, null), document.getElementById('rxss'));
 
 
 
