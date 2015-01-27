@@ -1,4 +1,3 @@
-/** @jsx React.DOM */
 var React = require('react/dist/react-with-addons.min.js');
 
 var APP = React.createClass({

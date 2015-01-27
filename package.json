@@ -1,14 +1,14 @@
 {
-  "name": "react-spread-sheet",
+  "name": "rx-speed-sheet",
   "version": "0.0.0",
   "description": "",
-  "main": "models.js",
+  "main": "./dist/js/rx-speed-sheet.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/NickStefan/react-spread-sheet.git"
+    "url": "https://github.com/NickStefan/rx-speed-sheet.git"
   },
   "author": "",
   "license": "ISC",
@@ -20,6 +20,7 @@
     "gulp": "^3.8.10",
     "gulp-browserify": "^0.5.1",
     "gulp-concat": "^2.4.3",
+    "gulp-rename": "^1.2.0",
     "reactify": "^1.0.0"
   },
   "dependencies": {
