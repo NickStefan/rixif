@@ -31,12 +31,9 @@ module.exports = APP;
 
 
 },{"react/dist/react-with-addons.min.js":1}],3:[function(require,module,exports){
-/** @jsx React.DOM */
-
-var REACTSPREADSHEET = require('./components/app');
-var React = require('react/dist/react-with-addons.min.js');
-
-React.render(React.createElement(REACTSPREADSHEET, null), document.getElementById('react-spread-sheet'));
+/* global exports for dist */
+REACTSPREADSHEET = require('./components/app');
+React = require('react/dist/react-with-addons.min.js');
 
 
 },{"./components/app":2,"react/dist/react-with-addons.min.js":1}]},{},[3])

@@ -1,6 +1,3 @@
-/** @jsx React.DOM */
-
-var REACTSPREADSHEET = require('./components/app');
-var React = require('react/dist/react-with-addons.min.js');
-
-React.render(<REACTSPREADSHEET />, document.getElementById('react-spread-sheet'));
+/* global exports for dist */
+REACTSPREADSHEET = require('./components/app');
+React = require('react/dist/react-with-addons.min.js');
