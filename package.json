@@ -1,0 +1,31 @@
+{
+  "name": "react-spread-sheet",
+  "version": "0.0.0",
+  "description": "",
+  "main": "models.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NickStefan/react-spread-sheet.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/NickStefan/react-spread-sheet/issues"
+  },
+  "homepage": "https://github.com/NickStefan/react-spread-sheet",
+  "devDependencies": {
+    "gulp": "^3.8.10",
+    "gulp-browserify": "^0.5.1",
+    "gulp-concat": "^2.4.3",
+    "reactify": "^1.0.0"
+  },
+  "dependencies": {
+    "flux": "^2.0.1",
+    "immutable": "^3.6.2",
+    "lodash": "^3.0.0",
+    "react": "^0.12.2"
+  }
+}
