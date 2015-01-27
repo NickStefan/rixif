@@ -111,6 +111,10 @@ var Cell = React.createClass({
   checkCell: function(e){
     if (e.key === 'Enter'){
       this.props.cellModel.set('value',e.target.value);
+      // inside of here should set the formula?
+      // model could then trigger events on listening cells?
+      // collections could do filter events for those cells values
+      // build up a ????
       this.closeEditMode();
     } else if (e.key === 'Escape'){
       this.closeEditMode();
