@@ -1,4 +1,4 @@
-var React = require('react/dist/react-with-addons.js');
+var React = require('react/dist/react-with-addons.min.js');
 
 var AppStore = require('../stores/app-store');
 var ROW = require('./row');

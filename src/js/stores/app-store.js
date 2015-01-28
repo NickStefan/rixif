@@ -1,5 +1,7 @@
 var EventEmitter = require('events').EventEmitter;
-var _ = require('lodash');
+var _ = {
+  range: require('lodash/utility/range')
+};
 
 var AppDispatcher = require('../dispatchers/app-dispatcher');
 var AppConstants = require('../constants/app-constants');
@@ -14,8 +16,8 @@ var extend = function(ontoObj,fromObj){
 
 var CHANGE_EVENT = 'change';
 
-var tableRows = _.map(_.range(0,30),function(num){
-  return _.map(_.range(0,10),function(){
+var tableRows = _.range(0,30).map(function(num){
+  return _.range(0,10).map(function(){
     return {value:'bob'};
   });
 });
