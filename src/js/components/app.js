@@ -1,8 +1,15 @@
-var React = require('react/dist/react-with-addons.min.js');
+var React = require('react/dist/react-with-addons.js');
+
+//var RIBBONBAR = require('./ribbonbar.js');
+var TABLE = require('./table');
 
 var APP = React.createClass({
   render: function(){
-    return <h1>My App</h1>
+    return (
+      <div>
+        <TABLE />
+      </div>
+    )
   }
 });
 

@@ -1,9 +1,9 @@
 var RXSS = require('./components/app');
-/* or with an with `$ npm install rx-speed-sheet` */
-// var RXSPEEDSHEET = require('rx-speed-sheet');
+/* or with an with `$ npm install rxss` */
+// var RXSS = require('rxss');
 
-var React = require('react/dist/react-with-addons.min.js');
+var React = require('react/dist/react-with-addons.js');
 
-React.renderComponent(<RXSS />, document.getElementById('rxss'));
+React.render(<RXSS />, document.getElementById('rxss'));
 
 
