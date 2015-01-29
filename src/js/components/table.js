@@ -35,7 +35,6 @@ var TABLE = React.createClass({
 
     var rowsHeaders = this.state.rows[0]
       .slice()
-      .concat("")
       .map(function(row,colIndex){
         return <th key={colIndex} className={"r-spreadsheet"}> {getAlphaHeader(colIndex)} </th>
     });

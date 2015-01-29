@@ -25,19 +25,16 @@ var tableRows = _.range(0,30).map(function(num){
 
 var _addCol = function(index) {
   if (index === undefined){
-    console.log(tableRows)
     tableRows = tableRows.map(function(row,rowIndex){
-      console.log(cell)
-      console.log(row)
-      //row.push(cell);
       return row.concat(cell);
     });
-    console.log(tableRows)
   }
 };
 var _rmCol = function(index) {
   if (index === undefined){
+    console.log(tableRows)
     tableRows = tableRows.map(function(row,rowIndex){
+      var row = row.slice();
       row.pop();
       return row;
     });
