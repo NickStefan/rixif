@@ -38,6 +38,21 @@ var AppDispatcher = extend(new Dispatcher(), {
     this.dispatch(payload);
   },
 
+  undo: function(action) {
+    var payload = {
+      source: 'UNDO',
+      action: action
+    };
+    this.dispatch(payload);
+  },
+  redo: function(action) {
+    var payload = {
+      source: 'REDO',
+      action: action
+    };
+    this.dispatch(payload);
+  },
+
 });
 
 module.exports = AppDispatcher;

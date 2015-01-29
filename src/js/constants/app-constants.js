@@ -5,6 +5,9 @@ module.exports = {
     RM_COL: 'RM_COL',
 
     ADD_ROW: 'ADD_ROW',
-    RM_ROW: 'RM_ROW'
+    RM_ROW: 'RM_ROW',
+
+    UNDO: 'UNDO',
+    REDO: 'REDO'
   }  
 };

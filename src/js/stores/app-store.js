@@ -17,6 +17,35 @@ var extend = function(ontoObj,fromObj){
 var CHANGE_EVENT = 'change';
 /////////////////////////////
 
+var CMDMNGR = function(store){
+  var obj = {};
+  obj.state = -1;
+  obj.history = [];
+  obj.push = function(cmd){
+    obj.history.push(cmd);
+    obj.state = obj.history.length - 1;
+  }
+  obj.undo = function(){
+    if (obj.state >= 0){
+      if (obj.history[obj.state] === undefined) console.log(obj.history, obj.state)
+      var cmd = obj.history[obj.state].undo;
+      var args = obj.history[obj.state].args;
+      cmd(args);
+      obj.state -= 1;
+    }
+  }
+  obj.redo = function(){
+    if (obj.state < obj.history.length - 1){
+      obj.state = obj.state >= 0 ? obj.state : 0;
+      var cmd = obj.history[obj.state].redo;
+      var args = obj.history[obj.state].args;
+      cmd(args);
+      obj.state += 1;
+    }
+  }
+  return obj;
+}
+
 var cell = {value:''};
 var defaultRow = _.range(0,10).map(function(){ return cell;});
 var tableRows = _.range(0,30).map(function(num){
@@ -32,7 +61,6 @@ var _addCol = function(index) {
 };
 var _rmCol = function(index) {
   if (index === undefined){
-    console.log(tableRows)
     tableRows = tableRows.map(function(row,rowIndex){
       var row = row.slice();
       row.pop();
@@ -52,6 +80,8 @@ var _rmRow = function(index) {
     tableRows.pop();
   }
 };
+
+var cmdMNGR = CMDMNGR();
 
 var AppStore = extend(EventEmitter.prototype, {
   emitChange: function(){
@@ -76,16 +106,43 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
     
     case ActionTypes.ADD_COL:
       _addCol(payload.action.index);
+      cmdMNGR.push({
+        redo: _addCol,
+        undo: _rmCol,
+        args: payload.action.index
+      });
       break;
     case ActionTypes.RM_COL:
       _rmCol(payload.action.index);
+      cmdMNGR.push({
+        redo: _rmCol,
+        undo: _addCol,
+        args: payload.action.index
+      });
       break;
     
     case ActionTypes.ADD_ROW:
       _addRow(payload.action.index);
+      cmdMNGR.push({
+        redo: _addRow,
+        undo: _rmRow,
+        args: payload.action.index
+      });
       break;
     case ActionTypes.RM_ROW:
       _rmRow(payload.action.index);
+      cmdMNGR.push({
+        redo: _rmRow,
+        undo: _addRow,
+        args: payload.action.index
+      });
+      break;
+
+    case ActionTypes.UNDO:
+      cmdMNGR.undo(payload.action.index);
+      break;
+    case ActionTypes.REDO:
+      cmdMNGR.redo(payload.action.index);
       break;
     
     default:

@@ -29,6 +29,19 @@ var AppActions = {
       type: ActionTypes.RM_ROW,
       index: index
     });
+  },
+
+  undo: function(index) {
+    AppDispatcher.undo({
+      type: ActionTypes.UNDO,
+      index: index
+    });
+  },
+  redo: function(index) {
+    AppDispatcher.redo({
+      type: ActionTypes.REDO,
+      index: index
+    });
   }
   
 };
