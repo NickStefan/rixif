@@ -1,5 +1,10 @@
 module.exports = {
   ActionTypes: {
-    ACTION_ACTION: 'ACTION_ACTION'
+
+    ADD_COL: 'ADD_COL',
+    RM_COL: 'RM_COL',
+
+    ADD_ROW: 'ADD_ROW',
+    RM_ROW: 'RM_ROW'
   }  
 };

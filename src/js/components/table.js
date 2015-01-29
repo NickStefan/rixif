@@ -1,4 +1,4 @@
-var React = require('react/dist/react-with-addons.min.js');
+var React = require('react/dist/react-with-addons.js');
 
 var AppStore = require('../stores/app-store');
 var ROW = require('./row');
@@ -19,6 +19,12 @@ var TABLE = React.createClass({
       cellInEditMode: false,
       rows: getTableData()
     };
+  },
+  componentWillMount: function(){
+    AppStore.addChangeListener(this._onChange);
+  },
+  _onChange: function(){
+    this.setState({rows: getTableData() });
   },
   render: function(){
     var rows = this.state.rows.map(function(rowData,rowIndex){

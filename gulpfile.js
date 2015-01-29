@@ -7,7 +7,7 @@ gulp.task('browserify', function(){
 
   /* example init */
   gulp.src('src/js/example-init.js')
-  .pipe(browserify({transform: 'reactify', debug: false}))
+  .pipe(browserify({transform: 'reactify', debug: true}))
   .pipe(concat('example-init.js'))
   .pipe(gulp.dest('dist/js'));
 

@@ -8,13 +8,35 @@ var extend = function(ontoObj,fromObj){
 
 var AppDispatcher = extend(new Dispatcher(), {
 
-  handleViewAction: function(action) {
+  addCol: function(action) {
     var payload = {
-      source: 'VIEW_ACTION',
+      source: 'ADD_COL',
       action: action
     };
     this.dispatch(payload);
-  }
+  },
+  rmCol: function(action) {
+    var payload = {
+      source: 'RM_COL',
+      action: action
+    };
+    this.dispatch(payload);
+  },
+
+  addRow: function(action) {
+    var payload = {
+      source: 'ADD_ROW',
+      action: action
+    };
+    this.dispatch(payload);
+  },
+  rmRow: function(action) {
+    var payload = {
+      source: 'RM_ROW',
+      action: action
+    };
+    this.dispatch(payload);
+  },
 
 });
 
