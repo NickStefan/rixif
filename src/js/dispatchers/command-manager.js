@@ -1,5 +1,5 @@
 
-var CommandManager = function(){
+var CommandManager = function(storeMethods){
 
   // stack of chronological commands
   this.history = [];
@@ -7,6 +7,8 @@ var CommandManager = function(){
   this.undos = [];
   // stack of available redos
   this.redos = [];
+  // commands to functions hash
+  this.storeMethods = storeMethods;
 
   // add a command
   this.add = function(redo,undo){
@@ -15,8 +17,9 @@ var CommandManager = function(){
     this.history.push(cmd);
     this.undos.push(cmd);
     // if we add to our undos, we have to reset our available redos
-    if (this.undos.length) this.redos = [];
+    this.redos = [];
     if (this.undos.length > 100) this.undos.shift();
+    console.table(this.history)
   }
 
   this.undo = function(storeModel){
@@ -30,7 +33,8 @@ var CommandManager = function(){
       // if we started from the bottom of the history stack,
       // we would invoke all of the redo methods to go forward in time.
       this.history.push({redo: cmd.undo, undo: cmd.redo, args: cmd.args });
-      return cmd.undo.apply(null,args);
+      console.table(this.history)
+      return this.storeMethods[ cmd.undo ].apply(null,args);
     }
     return storeModel;
   }
@@ -41,7 +45,8 @@ var CommandManager = function(){
       var args = [storeModel].concat(cmd.args);
       this.undos.push(cmd);
       this.history.push(cmd);
-      return cmd.redo.apply(null,args);
+      console.table(this.history)
+      return this.storeMethods[ cmd.redo ].apply(null,args);
     }
     return storeModel;
   }
