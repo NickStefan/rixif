@@ -1,50 +1,22 @@
 var EventEmitter = require('events').EventEmitter;
 var _ = {
   range: require('lodash/utility/range'),
-  isUndefined: require('lodash/lang/isUndefined')
+  isUndefined: require('lodash/lang/isUndefined'),
+  extend: require('lodash/object/extend')
 };
 
+var CommandManager = require('../dispatchers/command-manager');
 var AppDispatcher = require('../dispatchers/app-dispatcher');
 var AppConstants = require('../constants/app-constants');
-
-var extend = function(ontoObj,fromObj){
-  for (var key in fromObj){
-    ontoObj[key] = fromObj[key];
-  }
-  return ontoObj
-}
-
+var ActionTypes = AppConstants.ActionTypes;
 var CHANGE_EVENT = 'change';
-/////////////////////////////
 
-var CMDMNGR = function(store){
-  var obj = {};
-  obj.state = -1;
-  obj.history = [];
-  obj.push = function(cmd){
-    obj.history.push(cmd);
-    obj.state = obj.history.length - 1;
-  }
-  obj.undo = function(){
-    if (obj.state >= 0){
-      if (obj.history[obj.state] === undefined) console.log(obj.history, obj.state)
-      var cmd = obj.history[obj.state].undo;
-      var args = obj.history[obj.state].args;
-      cmd(args);
-      obj.state -= 1;
-    }
-  }
-  obj.redo = function(){
-    if (obj.state < obj.history.length - 1){
-      obj.state = obj.state >= 0 ? obj.state : 0;
-      var cmd = obj.history[obj.state].redo;
-      var args = obj.history[obj.state].args;
-      cmd(args);
-      obj.state += 1;
-    }
-  }
-  return obj;
-}
+/////////////////////////////
+// Store Command Manager
+var commandManager = new CommandManager();
+
+/////////////////////////////
+// Store Model
 
 var cell = {value:''};
 var defaultRow = _.range(0,10).map(function(){ return cell;});
@@ -52,16 +24,19 @@ var tableRows = _.range(0,30).map(function(num){
   return defaultRow;
 });
 
-var _addCol = function(index) {
+/////////////////////////////
+// Store Methods
+
+var _addCol = function(tableRows, index) {
   if (index === undefined){
-    tableRows = tableRows.map(function(row,rowIndex){
+    return tableRows = tableRows.map(function(row,rowIndex){
       return row.concat(cell);
     });
   }
 };
-var _rmCol = function(index) {
+var _rmCol = function(tableRows, index) {
   if (index === undefined){
-    tableRows = tableRows.map(function(row,rowIndex){
+    return tableRows = tableRows.map(function(row,rowIndex){
       var row = row.slice();
       row.pop();
       return row;
@@ -69,21 +44,22 @@ var _rmCol = function(index) {
   }
 };
 
-var _addRow = function(index) {
+var _addRow = function(tableRows, index) {
   if (index === undefined){
     var newRow = _.isUndefined(tableRows[0]) ? defaultRow : tableRows[0];
     tableRows.push(newRow);
+    return tableRows;
   }
 };
-var _rmRow = function(index) {
+var _rmRow = function(tableRows, index) {
   if (index === undefined){
     tableRows.pop();
+    return tableRows;
   }
 };
 
-var cmdMNGR = CMDMNGR();
 
-var AppStore = extend(EventEmitter.prototype, {
+var AppStore = _.extend(EventEmitter.prototype, {
   emitChange: function(){
     this.emit(CHANGE_EVENT);
   },
@@ -98,51 +74,34 @@ var AppStore = extend(EventEmitter.prototype, {
   }
 });
 
-var ActionTypes = AppConstants.ActionTypes;
 
 AppStore.dispatchToken = AppDispatcher.register(function(payload){
   var action = payload.action;
   switch(action.type) {
     
     case ActionTypes.ADD_COL:
-      _addCol(payload.action.index);
-      cmdMNGR.push({
-        redo: _addCol,
-        undo: _rmCol,
-        args: payload.action.index
-      });
+      tableRows = _addCol(tableRows, payload.action.index);
+      commandManager.add(_addCol, _rmCol, payload.action.index);
       break;
     case ActionTypes.RM_COL:
-      _rmCol(payload.action.index);
-      cmdMNGR.push({
-        redo: _rmCol,
-        undo: _addCol,
-        args: payload.action.index
-      });
+      tableRows = _rmCol(tableRows, payload.action.index);
+      commandManager.add(_rmCol, _addCol, payload.action.index);
       break;
     
     case ActionTypes.ADD_ROW:
-      _addRow(payload.action.index);
-      cmdMNGR.push({
-        redo: _addRow,
-        undo: _rmRow,
-        args: payload.action.index
-      });
+      tableRows = _addRow(tableRows, payload.action.index);
+      commandManager.add(_addRow, _rmRow, payload.action.index);
       break;
     case ActionTypes.RM_ROW:
-      _rmRow(payload.action.index);
-      cmdMNGR.push({
-        redo: _rmRow,
-        undo: _addRow,
-        args: payload.action.index
-      });
+      tableRows = _rmRow(tableRows, payload.action.index);
+      commandManager.add(_rmRow, _addRow, payload.action.index);
       break;
 
     case ActionTypes.UNDO:
-      cmdMNGR.undo(payload.action.index);
+      tableRows = commandManager.undo(tableRows);
       break;
     case ActionTypes.REDO:
-      cmdMNGR.redo(payload.action.index);
+      tableRows = commandManager.redo(tableRows);
       break;
     
     default:

@@ -1,52 +1,51 @@
 
 var CommandManager = function(){
-  // class container
-  var obj = {};
-  // track where in our history we currently are
-  obj.state = -1;
+
   // stack of chronological commands
-  obj.history = [];
+  this.history = [];
+  // stack of available undos
+  this.undos = [];
+  // stack of available redos
+  this.redos = [];
+
   // add a command
-  obj.add = function(redo,undo){
+  this.add = function(redo,undo){
     var args = Array.prototype.slice.call(arguments,2);
-    obj.history.push({
-      redo: redo,
-      undo: undo,
-      args: args
-    });
-    obj.state += obj.history - 1;
+    var cmd = {redo: redo, undo: undo, args: args };
+    this.history.push(cmd);
+    this.undos.push(cmd);
+    // if we add to our undos, we have to reset our available redos
+    if (this.undos.length) this.redos = [];
+    if (this.undos.length > 100) this.undos.shift();
   }
 
-  // move towards bottom of stack
-  obj.undo = function(storeModel){
-    if (obj.state >= 0){
-      var cmd = obj.history[obj.state].undo;
-      var args = [storeModel].concat(obj.history[obj.state].args);
-      obj.state -= 1;
-      //console.table(obj.history);
-      console.log(obj.state)
-      return cmd.apply(null,args);
+  this.undo = function(storeModel){
+    if (this.undos.length){
+      var cmd = this.undos.pop();
+      var args = [storeModel].concat(cmd.args);
+      this.redos.push(cmd);
+      // invoking an undo command, adds a new command to the history stack.
+      // this new command is a 'forward' movement in context of adding to history stack,
+      // thus we store this cmd's 'undo' function as if it were a redo method.
+      // if we started from the bottom of the history stack,
+      // we would invoke all of the redo methods to go forward in time.
+      this.history.push({redo: cmd.undo, undo: cmd.redo, args: cmd.args });
+      return cmd.undo.apply(null,args);
     }
-    console.table(obj.history);
-    console.log(obj.state)
     return storeModel;
   }
-  // move towards top of stack
-  obj.redo = function(storeModel){
-    if (obj.state < obj.history.length - 1){
-      obj.state = obj.state >= 0 ? obj.state : 0;
-      var cmd = obj.history[obj.state].redo;
-      var args = [storeModel].concat(obj.history[obj.state].args);
-      obj.state += 1;
-      //console.table(obj.history);
-      console.log(obj.state)
-      return cmd.apply(null,args);
+    
+  this.redo = function(storeModel){
+    if (this.redos.length){
+      var cmd = this.redos.pop();
+      var args = [storeModel].concat(cmd.args);
+      this.undos.push(cmd);
+      this.history.push(cmd);
+      return cmd.redo.apply(null,args);
     }
-    console.table(obj.history);
-    console.log(obj.state)
     return storeModel;
   }
-  return obj;
+
 }
 
 module.exports = CommandManager;
