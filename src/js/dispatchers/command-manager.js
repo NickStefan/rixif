@@ -19,7 +19,7 @@ var CommandManager = function(storeMethods){
     // if we add to our undos, we have to reset our available redos
     this.redos = [];
     if (this.undos.length > 100) this.undos.shift();
-    console.table(this.history)
+    //console.table(this.history)
   }
 
   this.undo = function(storeModel){
@@ -33,7 +33,7 @@ var CommandManager = function(storeMethods){
       // if we started from the bottom of the history stack,
       // we would invoke all of the redo methods to go forward in time.
       this.history.push({redo: cmd.undo, undo: cmd.redo, args: cmd.args });
-      console.table(this.history)
+      //console.table(this.history)
       return this.storeMethods[ cmd.undo ].apply(null,args);
     }
     return storeModel;
@@ -45,7 +45,7 @@ var CommandManager = function(storeMethods){
       var args = [storeModel].concat(cmd.args);
       this.undos.push(cmd);
       this.history.push(cmd);
-      console.table(this.history)
+      //console.table(this.history)
       return this.storeMethods[ cmd.redo ].apply(null,args);
     }
     return storeModel;

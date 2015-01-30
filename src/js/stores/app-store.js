@@ -22,7 +22,7 @@ var tableRows = _.range(0,30).map(function(num){
 });
 
 /////////////////////////////
-// Store Methods
+// Private Store Methods
 var storeMethods = {
   _addCol: function(tableRows, index) {
     if (index === undefined){
@@ -60,7 +60,8 @@ var storeMethods = {
 // Store Command Manager
 var commandManager = new CommandManager(storeMethods);
 
-
+/////////////////////////////
+// Store Public Methods
 var AppStore = _.extend(EventEmitter.prototype, {
   emitChange: function(){
     this.emit(CHANGE_EVENT);
@@ -76,7 +77,8 @@ var AppStore = _.extend(EventEmitter.prototype, {
   }
 });
 
-
+/////////////////////////////
+// map from dispatcher to store methods
 AppStore.dispatchToken = AppDispatcher.register(function(payload){
   var action = payload.action;
   switch(action.type) {
