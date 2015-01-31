@@ -1,11 +1,11 @@
 
 var LocalCommandManager = function(AppDispatcher, io){
 
+  // this.history = [];
   // stack of available undos
   this.undos = [];
   // stack of available redos
   this.redos = [];
-  this.history = [];
   // available commands hash, set as a property after instantiation
   this.AppDispatcher = AppDispatcher;
 
@@ -25,8 +25,8 @@ var LocalCommandManager = function(AppDispatcher, io){
     if (this.undos.length > 100) this.undos.shift();
 
     // if (io) socket.emmit('cmd', cmd)
-    this.history.push(cmd)
-    //console.table(this.undos);
+    // this.history.push(cmd)
+    // console.table(this.history);
   }
 
   this.undo = function(){
@@ -34,7 +34,10 @@ var LocalCommandManager = function(AppDispatcher, io){
       var cmd = this.undos.pop();
       var args = cmd.args;
       this.redos.push(cmd);
-      this.AppDispatcher[ cmd.undo ].apply(null,args);
+      this.AppDispatcher[ cmd.undo ]({
+        type: cmd.undo,
+        args: args
+      });
       
       // invoking an undo command, adds a new command to the history stack.
       // this new command is a 'forward' movement in context of adding to history stack,
@@ -42,10 +45,10 @@ var LocalCommandManager = function(AppDispatcher, io){
       // if we started from the bottom of the history stack,
       // we would invoke all of the redo methods to go forward in time.
       
-      var chronoTimeCmd = {redo: cmd.undo, undo: cmd.redo, args: cmd.args };
-      // if (io) socket.emmit('cmd', chronoTimeCmd);
-      this.history.push(chronoTimeCmd);
-      console.table(this.undos);
+      // var chronoTimeCmd = {redo: cmd.undo, undo: cmd.redo, args: cmd.args };
+      // // if (io) socket.emmit('cmd', chronoTimeCmd);
+      // this.history.push(chronoTimeCmd);
+      // console.table(this.history);
     }
   }
     
@@ -54,11 +57,14 @@ var LocalCommandManager = function(AppDispatcher, io){
       var cmd = this.redos.pop();
       var args = cmd.args;
       this.undos.push(cmd);
-      this.AppDispatcher[ cmd.redo ].apply(null,args);
+      this.AppDispatcher[ cmd.redo ]({
+        type: cmd.redo,
+        args: args
+      });
       
       // if (io) socket.emmit('cmd', cmd);
-      this.history.push(cmd)
-      //console.table(this.redos);
+      // this.history.push(cmd)
+      // console.table(this.history);
     }
   }
 
