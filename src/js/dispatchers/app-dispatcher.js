@@ -10,14 +10,14 @@ var AppDispatcher = extend(new Dispatcher(), {
 
   addCol: function(action) {
     var payload = {
-      source: 'ADD_COL',
+      source: 'addCol',
       action: action
     };
     this.dispatch(payload);
   },
   rmCol: function(action) {
     var payload = {
-      source: 'RM_COL',
+      source: 'rmCol',
       action: action
     };
     this.dispatch(payload);
@@ -25,33 +25,19 @@ var AppDispatcher = extend(new Dispatcher(), {
 
   addRow: function(action) {
     var payload = {
-      source: 'ADD_ROW',
+      source: 'addRow',
       action: action
     };
     this.dispatch(payload);
   },
   rmRow: function(action) {
     var payload = {
-      source: 'RM_ROW',
+      source: 'rmRow',
       action: action
     };
     this.dispatch(payload);
-  },
+  }
 
-  undo: function(action) {
-    var payload = {
-      source: 'UNDO',
-      action: action
-    };
-    this.dispatch(payload);
-  },
-  redo: function(action) {
-    var payload = {
-      source: 'REDO',
-      action: action
-    };
-    this.dispatch(payload);
-  },
 
 });
 

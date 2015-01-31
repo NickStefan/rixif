@@ -1,13 +1,22 @@
 module.exports = {
   ActionTypes: {
 
-    ADD_COL: 'ADD_COL',
-    RM_COL: 'RM_COL',
+    addCol: 'addCol',
+    rmCol: 'rmCol',
 
-    ADD_ROW: 'ADD_ROW',
-    RM_ROW: 'RM_ROW',
+    addRow: 'addRow',
+    rmRow: 'rmRow',
 
-    UNDO: 'UNDO',
-    REDO: 'REDO'
-  }  
+    undo: 'undo',
+    redo: 'redo'
+  },
+
+  reverse: {
+    
+    addCol: 'rmCol',
+    rmCol: 'addCol',
+
+    addRow: 'rmRow',
+    rmRow: 'addRow'
+  }
 };

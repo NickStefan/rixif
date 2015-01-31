@@ -5,7 +5,6 @@ var _ = {
   extend: require('lodash/object/extend')
 };
 
-var CommandManager = require('../dispatchers/command-manager');
 var AppDispatcher = require('../dispatchers/app-dispatcher');
 var AppConstants = require('../constants/app-constants');
 var ActionTypes = AppConstants.ActionTypes;
@@ -57,10 +56,6 @@ var storeMethods = {
 }
 
 /////////////////////////////
-// Store Command Manager
-var commandManager = new CommandManager(storeMethods);
-
-/////////////////////////////
 // Store Public Methods
 var AppStore = _.extend(EventEmitter.prototype, {
   emitChange: function(){
@@ -82,31 +77,21 @@ var AppStore = _.extend(EventEmitter.prototype, {
 AppStore.dispatchToken = AppDispatcher.register(function(payload){
   var action = payload.action;
   switch(action.type) {
-    
-    case ActionTypes.ADD_COL:
+
+    case ActionTypes.addCol:
       tableRows = storeMethods._addCol(tableRows, payload.action.index);
-      commandManager.add('_addCol', '_rmCol', payload.action.index);
       break;
-    case ActionTypes.RM_COL:
+    case ActionTypes.rmCol:
       tableRows = storeMethods._rmCol(tableRows, payload.action.index);
-      commandManager.add('_rmCol', '_addCol', payload.action.index);
       break;
     
-    case ActionTypes.ADD_ROW:
+    case ActionTypes.addRow:
       tableRows = storeMethods._addRow(tableRows, payload.action.index);
-      commandManager.add('_addRow', '_rmRow', payload.action.index);
       break;
-    case ActionTypes.RM_ROW:
+    case ActionTypes.rmRow:
       tableRows = storeMethods._rmRow(tableRows, payload.action.index);
-      commandManager.add('_rmRow', '_addRow', payload.action.index);
       break;
 
-    case ActionTypes.UNDO:
-      tableRows = commandManager.undo(tableRows);
-      break;
-    case ActionTypes.REDO:
-      tableRows = commandManager.redo(tableRows);
-      break;
     
     default:
       // do nothing
