@@ -24,7 +24,7 @@ var LocalCommandManager = function(AppDispatcher, io){
     // keep local commands from getting too big
     if (this.undos.length > 100) this.undos.shift();
 
-    // if (io) socket.emmit('cmd', cmd)
+    // if (io) socket.emmit('cmd', cmd) // add user info to cmd obj
     // this.history.push(cmd)
     // console.table(this.history);
   }
@@ -46,7 +46,7 @@ var LocalCommandManager = function(AppDispatcher, io){
       // we would invoke all of the redo methods to go forward in time.
       
       // var chronoTimeCmd = {redo: cmd.undo, undo: cmd.redo, args: cmd.args };
-      // // if (io) socket.emmit('cmd', chronoTimeCmd);
+      // // if (io) socket.emmit('cmd', chronoTimeCmd); // add user info to cmd obj
       // this.history.push(chronoTimeCmd);
       // console.table(this.history);
     }
@@ -62,11 +62,14 @@ var LocalCommandManager = function(AppDispatcher, io){
         args: args
       });
       
-      // if (io) socket.emmit('cmd', cmd);
+      // if (io) socket.emmit('cmd', cmd); // add user info to cmd obj
       // this.history.push(cmd)
       // console.table(this.history);
     }
   }
+
+  // listen for cmd events on socket.io channel, and then dispatch them to the stores
+  // fn method
 
 }
 
