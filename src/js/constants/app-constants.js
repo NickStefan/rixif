@@ -11,12 +11,18 @@ module.exports = {
     rmRow: 'rmRow',
 
     selected: 'selected',
-    editing: 'editing'
+    editing: 'editing',
+    enterEditMode: 'enterEditMode',
+
+    move: 'move',
+    changeCell: 'changeCell'
   },
 
   notForCommandManager: {
     selected: 'selected',
-    editing: 'editing'
+    editing: 'editing',
+    enterEditMode: 'enterEditMode',
+    move: 'move'
   },
 
   reverse: {
@@ -25,6 +31,8 @@ module.exports = {
     rmCol: 'addCol',
 
     addRow: 'rmRow',
-    rmRow: 'addRow'
+    rmRow: 'addRow',
+
+    changeCell: 'changeCell'
   }
 };

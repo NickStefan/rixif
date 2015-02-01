@@ -10,11 +10,11 @@ var CHANGE_EVENT = 'change';
 
 var sheetDataStore = require('../stores/sheetDataStore');
 var sheetDataMethods = sheetDataStore.storeMethods;
-var sheetData = sheetDataStore.tableRows;
+var sheetData = sheetDataStore.table;
 
 var sheetStateStore = require('../stores/sheetStateStore');
 var sheetStateMethods = sheetStateStore.stateMethods;
-var sheetState = sheetStateStore.tableRows;
+var sheetState = sheetStateStore.table;
 
 /////////////////////////////
 // Store Public Methods
@@ -28,10 +28,10 @@ var AppStore = _.extend(EventEmitter.prototype, {
   removeEventListener: function(callback){
     this.removeEventListener(CHANGE_EVENT, callback);
   },
-  getRows: function(){
+  getTable: function(){
     return sheetData;
   },
-  getRowsState: function(){
+  getTableState: function(){
     return sheetState;
   }
 });
@@ -42,6 +42,7 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
   var action = payload.action;
   switch(action.type) {
 
+    // state and data changes
     case ActionTypes.addCol:
       sheetData = sheetDataMethods._addCol(sheetData, payload.action.args);
       sheetState = sheetStateMethods._addCol(sheetState, payload.action.args);
@@ -60,11 +61,25 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
       sheetState = sheetStateMethods._rmRow(sheetState, payload.action.args);
       break;
 
+    case ActionTypes.changeCell:
+      sheetData = sheetDataMethods._changeCell(sheetData, payload.action.args);
+      sheetState = sheetStateMethods._editing(sheetState, undefined);
+      break;
+
+
+    // purely state changes
     case ActionTypes.selected:
       sheetState = sheetStateMethods._selected(sheetState, payload.action.args);
       break;
     case ActionTypes.editing:
       sheetState = sheetStateMethods._editing(sheetState, payload.action.args);
+      break;
+    case ActionTypes.enterEditMode:
+      sheetState = sheetStateMethods._enterEditMode(sheetState, payload.action.args);
+      break;
+
+    case ActionTypes.move:
+      sheetState = sheetStateMethods._move(sheetState, payload.action.args);
       break;
 
     default:

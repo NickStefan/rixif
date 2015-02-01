@@ -6,18 +6,35 @@ var CELL = React.createClass({
   handleClick: function(e) {
     if (!this.props.state.selected){
       AppActions.selected(this.props.rowIndex, this.props.colIndex);
+      console.log(this.props.colIndex)
     } else if (this.props.state.selected && !this.props.state.editing){
       AppActions.editing(this.props.rowIndex, this.props.colIndex);
     } else if (this.props.state.selected && this.props.state.editing){
-      console.log('do nothing');
+      // do nothing
+    }
+  },
+  checkCell: function(e){
+    if (e.key === 'Enter'){
+      var newValue = e.target.value;
+      var formula = newValue.length && newValue[0] === '=' ? true : false;
+      var oldValue = formula ? this.props.cellData.formula : this.props.cellData.value;
+      // check that e.target.value is not = to either old formula or old value
+      if (formula && newValue !== this.props.cellData.formula){
+        AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
+      } else if (!formula && newValue !== this.props.cellData.value){
+        AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
+      } else {
+        AppActions.editing();
+      }
+    } else if (e.key === 'Escape'){
+      AppActions.editing();
     }
   },
   render: function(){
-    console.log('rerender');
     var cellValue = this.props.cellData.value;
     var cellEdit = <input autoFocus onKeyDown={this.checkCell} className={'cell-edit'} type='text' defaultValue={cellValue} />;
     var cellView = this.props.state.editing ? cellEdit : cellValue;
-
+    if (this.props.state.editing) console.log(this.props.colIndex)
     /* a css class toggle object based on state */
     var classes = classSet({
       'selected-cell': this.props.state.selected,

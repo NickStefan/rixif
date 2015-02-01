@@ -7,32 +7,38 @@ var _ = {
 /////////////////////////////
 // Store Model
 
-var cell = function() {
-  this.value = "";
+var cell = function(val) {
+  this.value = val || "";
 };
 var defaultRow = function(length) {
   length = length || 10;
-  this.cells = _.range(0,length).map(function(){ 
+  this.cells = _.range(0,length).map(function(v,k){
+    if (k === 1) return new cell('bob');
     return new cell();
   });
 };
-var tableRows = _.range(0,30).map(function(num){
-  return new defaultRow();
-});
+var defaultTable = function() {
+  this.rows = _.range(0,30).map(function(num){
+    return new defaultRow();
+  });
+  this.cellInEditMode = false;
+};
+
+var table = new defaultTable();
 
 /////////////////////////////
 // Private Store Methods
 var storeMethods = {
-  _addCol: function(tableRows, index) {
+  _addCol: function(table, index) {
     if (index === undefined){
-      return tableRows = tableRows.map(function(row,rowIndex){
+      return table = table.rows.map(function(row,rowIndex){
         return row.cells.concat(new cell());
       });
     }
   },
-  _rmCol: function(tableRows, index) {
+  _rmCol: function(table, index) {
     if (index === undefined){
-      return tableRows = tableRows.map(function(row,rowIndex){
+      return table = table.rows.map(function(row,rowIndex){
         var row = row.slice();
         row.cells.pop();
         return row;
@@ -40,19 +46,29 @@ var storeMethods = {
     }
   },
 
-  _addRow: function(tableRows, index) {
+  _addRow: function(table, index) {
     if (index === undefined){
-      var newRow = _.isUndefined(tableRows[0]) ? new defaultRow() : new defaultRow(tableRows[0].length);
-      tableRows.push(newRow);
-      return tableRows;
+      var newRow = _.isUndefined(table.rows[0]) ? new defaultRow() : new defaultRow(table.rows[0].length);
+      table.rows.push(newRow);
+      return table;
     }
   },
-  _rmRow: function(tableRows, index) {
+  _rmRow: function(table, index) {
     if (index === undefined){
-      tableRows.pop();
-      return tableRows;
+      table.rows.pop();
+      return table;
     }
-  }
+  },
+
+  _changeCell: function(table, row, col, newValue, oldValue) {
+    if (newValue.length && newValue[0] === '='){
+      table.rows[row].cells[col].formula = newValue;
+    } else {
+      table.rows[row].cells[col].value = newValue;
+    }
+    // this._updateFormulas();
+    return table;
+  },
 }
 
 // map the invoked arguments to the expected arguments defined above.
@@ -66,6 +82,7 @@ var storeMethods = {
 storeMethods = _.mapValues(storeMethods, function(fn) {
   return function(){
     var store = arguments[0];
+    arguments[1] = arguments[1] || [];
     var dispatchedArgs = arguments[1].length ? arguments[1] : undefined;
     var args = [ store ].concat(dispatchedArgs);
     return fn.apply(null, args);
@@ -74,5 +91,5 @@ storeMethods = _.mapValues(storeMethods, function(fn) {
 
 module.exports = {
   storeMethods: storeMethods,
-  tableRows: tableRows
+  table: table
 }

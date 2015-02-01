@@ -17,9 +17,14 @@ var defaultRow = function(length) {
     return new cell();
   });
 };
-var tableRows = _.range(0,30).map(function(num){
-  return new defaultRow();
-});
+var defaultTable = function() {
+  this.rows = _.range(0,30).map(function(num){
+    return new defaultRow();
+  });
+  this.cellInEditMode = false;
+};
+
+var table = new defaultTable();
 
 // to avoid iterating the entire table to set and unset these
 var lastSelected = {row:1, col: 1};
@@ -28,16 +33,16 @@ var lastEditing = {row:1, col: 1};
 /////////////////////////////
 // Private State Methods
 var stateMethods = {
-  _addCol: function(tableRows, index) {
+  _addCol: function(table, index) {
     if (index === undefined){
-      return tableRows = tableRows.map(function(row,rowIndex){
+      return table = table.rows.map(function(row,rowIndex){
         return row.cells.concat(new cell());
       });
     }
   },
-  _rmCol: function(tableRows, index) {
+  _rmCol: function(table, index) {
     if (index === undefined){
-      return tableRows = tableRows.map(function(row,rowIndex){
+      return table = table.rows.map(function(row,rowIndex){
         var row = row.slice();
         row.cells.pop();
         return row;
@@ -45,34 +50,64 @@ var stateMethods = {
     }
   },
 
-  _addRow: function(tableRows, index) {
+  _addRow: function(table, index) {
     if (index === undefined){
-      var newRow = _.isUndefined(tableRows[0]) ? new defaultRow() : new defaultRow(tableRows[0].length);
-      tableRows.push(newRow);
-      return tableRows;
+      var newRow = _.isUndefined(table.rows[0]) ? new defaultRow() : new defaultRow(table.rows[0].length);
+      table.rows.push(newRow);
+      return table;
     }
   },
-  _rmRow: function(tableRows, index) {
+  _rmRow: function(table, index) {
     if (index === undefined){
-      tableRows.pop();
-      return tableRows;
+      table.rows.pop();
+      return table;
     }
   },
 
-  _selected: function(tableRows, row, col) {
+  _selected: function(table, row, col) {
     // close any editing cells
-    tableRows[lastEditing.row].cells[lastEditing.col].editing = false;
+    console.log(col)
+    table.rows[lastEditing.row].cells[lastEditing.col].editing = false;
+    table.cellInEditMode = false;
     // select cells and unselect previously selected cell
-    tableRows[lastSelected.row].cells[lastSelected.col].selected = false;
-    tableRows[row].cells[col].selected = true;
+    table.rows[lastSelected.row].cells[lastSelected.col].selected = false;
+    table.rows[row].cells[col].selected = true;
     lastSelected = {row: row, col: col};
-    return tableRows;
+    return table;
   },
-  _editing: function(tableRows, row, col) {
-    tableRows[lastEditing.row].cells[lastEditing.col].editing = false;
-    tableRows[row].cells[col].editing = true;
+  _editing: function(table, row, col) {
+    if (row === undefined) {
+      return this._selected(table,lastEditing.row, lastEditing.col);
+    }
+    table.rows[lastEditing.row].cells[lastEditing.col].editing = false;
+    table.rows[row].cells[col].editing = true;
+    table.cellInEditMode = true;
     lastEditing = {row: row, col: col};
-    return tableRows;
+    return table;
+  },
+  _enterEditMode: function(table) {
+    return this._editing(table,lastSelected.row, lastSelected.col);
+  },
+
+  _move: function(table,move) {
+    if (table.cellInEditMode){
+      return table;
+    }
+    if (move === 'right' && lastSelected.col < table.rows[0].cells.length - 2){
+      console.log(move)
+      return this._selected(table, lastSelected.row, lastSelected.col + 1);
+
+    } else if (move === 'left' && lastSelected.col > 0){
+      return this._selected(table, lastSelected.row, lastSelected.col - 1);
+
+    } else  if (move === 'up' && lastSelected.row > 0){
+      return this._selected(table, lastSelected.row - 1, lastSelected.col);
+
+    } else if (move === 'down' && lastSelected.row < table.rows.length - 1){
+      return this._selected(table, lastSelected.row + 1, lastSelected.col)
+    } else {
+      return table;
+    }
   }
 }
 
@@ -84,16 +119,17 @@ var stateMethods = {
 //   store.Method(store1, args); 
 // invokes the methods defined above as
 //   store.Method(store1, args[0], args[1] ... etc )
-stateMethods = _.mapValues(stateMethods, function(fn) {
+stateMethods = _.mapValues(stateMethods, function(fn,fnName,classObj) {
   return function(){
     var store = arguments[0];
+    arguments[1] = arguments[1] || [];
     var dispatchedArgs = arguments[1].length ? arguments[1] : undefined;
     var args = [ store ].concat(dispatchedArgs);
-    return fn.apply(null, args);
+    return fn.apply(classObj, args);
   }
 });
 
 module.exports = {
   stateMethods: stateMethods,
-  tableRows: tableRows
+  table: table
 }
