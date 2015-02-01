@@ -59,6 +59,11 @@ var TABLE = React.createClass({
         AppActions.enterEditMode();
       }
   },
+  componentDidUpdate: function() {
+    if (!this.state.tableState.cellInEditMode){
+      this.getDOMNode().focus();
+    }
+  },
   render: function(){
     var self = this;
     var rows = this.state.table.rows.map(function(rowData,i){
@@ -67,7 +72,7 @@ var TABLE = React.createClass({
       )
     });
 
-    var rowsHeaders = this.state.table.rows[0].cells
+    var rowsHeaders = this.state.table.rows[0].cells.concat(null)
       .slice()
       .map(function(row,colIndex){
         return <th key={colIndex} className={"r-spreadsheet"}> {getAlphaHeader(colIndex)} </th>

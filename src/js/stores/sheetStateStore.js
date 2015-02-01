@@ -66,7 +66,6 @@ var stateMethods = {
 
   _selected: function(table, row, col) {
     // close any editing cells
-    console.log(col)
     table.rows[lastEditing.row].cells[lastEditing.col].editing = false;
     table.cellInEditMode = false;
     // select cells and unselect previously selected cell
@@ -77,7 +76,7 @@ var stateMethods = {
   },
   _editing: function(table, row, col) {
     if (row === undefined) {
-      return this._selected(table,lastEditing.row, lastEditing.col);
+      return this._selected(table, lastEditing.row, lastEditing.col);
     }
     table.rows[lastEditing.row].cells[lastEditing.col].editing = false;
     table.rows[row].cells[col].editing = true;
@@ -94,7 +93,6 @@ var stateMethods = {
       return table;
     }
     if (move === 'right' && lastSelected.col < table.rows[0].cells.length - 2){
-      console.log(move)
       return this._selected(table, lastSelected.row, lastSelected.col + 1);
 
     } else if (move === 'left' && lastSelected.col > 0){

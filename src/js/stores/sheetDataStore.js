@@ -13,7 +13,6 @@ var cell = function(val) {
 var defaultRow = function(length) {
   length = length || 10;
   this.cells = _.range(0,length).map(function(v,k){
-    if (k === 1) return new cell('bob');
     return new cell();
   });
 };
