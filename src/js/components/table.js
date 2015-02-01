@@ -9,31 +9,39 @@ var getAlphaHeader = function(num){
   return alpha[num];
 }
 
-function getTableData(){
+function getRowsData(){
   return AppStore.getRows();
+}
+
+function getRowsState(){
+  return AppStore.getRowsState();
 }
 
 var TABLE = React.createClass({
   getInitialState: function(){
     return {
-      cellInEditMode: false,
-      rows: getTableData()
+      rows: getRowsData(),
+      rowsState: getRowsState()
     };
   },
   componentWillMount: function(){
     AppStore.addChangeListener(this._onChange);
   },
   _onChange: function(){
-    this.setState({rows: getTableData() });
+    this.setState({
+      rows: getRowsData(),
+      rowsState: getRowsState()
+    });
   },
   render: function(){
-    var rows = this.state.rows.map(function(rowData,rowIndex){
+    var self = this;
+    var rows = this.state.rows.map(function(rowData,i){
       return (
-        <ROW key={rowIndex} row={rowData} index={rowIndex} />
+        <ROW key={i} row={rowData} state={self.state.rowsState[i]} index={i} />
       )
     });
 
-    var rowsHeaders = this.state.rows[0]
+    var rowsHeaders = this.state.rows[0].cells
       .slice()
       .map(function(row,colIndex){
         return <th key={colIndex} className={"r-spreadsheet"}> {getAlphaHeader(colIndex)} </th>

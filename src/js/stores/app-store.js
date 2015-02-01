@@ -1,10 +1,6 @@
 var EventEmitter = require('events').EventEmitter;
 var _ = {
-  range: require('lodash/utility/range'),
-  isUndefined: require('lodash/lang/isUndefined'),
-  extend: require('lodash/object/extend'),
-  mapValues: require('lodash/object/mapValues'),
-  toArray: require('lodash/lang/toArray')
+  extend: require('lodash/object/extend')
 };
 
 var AppDispatcher = require('../dispatchers/app-dispatcher');
@@ -12,67 +8,13 @@ var AppConstants = require('../constants/app-constants');
 var ActionTypes = AppConstants.ActionTypes;
 var CHANGE_EVENT = 'change';
 
+var sheetDataStore = require('../stores/sheetDataStore');
+var sheetDataMethods = sheetDataStore.storeMethods;
+var sheetData = sheetDataStore.tableRows;
 
-/////////////////////////////
-// Store Model
-
-var cell = {value:''};
-var defaultRow = _.range(0,10).map(function(){ return cell;});
-var tableRows = _.range(0,30).map(function(num){
-  return defaultRow;
-});
-
-/////////////////////////////
-// Private Store Methods
-var storeMethods = {
-  _addCol: function(tableRows, index) {
-    if (index === undefined){
-      return tableRows = tableRows.map(function(row,rowIndex){
-        return row.concat(cell);
-      });
-    }
-  },
-  _rmCol: function(tableRows, index) {
-    if (index === undefined){
-      return tableRows = tableRows.map(function(row,rowIndex){
-        var row = row.slice();
-        row.pop();
-        return row;
-      });
-    }
-  },
-
-  _addRow: function(tableRows, index) {
-    if (index === undefined){
-      var newRow = _.isUndefined(tableRows[0]) ? defaultRow : tableRows[0];
-      tableRows.push(newRow);
-      return tableRows;
-    }
-  },
-  _rmRow: function(tableRows, index) {
-    if (index === undefined){
-      tableRows.pop();
-      return tableRows;
-    }
-  }
-}
-
-// map the invoked arguments to the expected arguments defined above.
-// this is a convenience to keep actions, dispatchers, etc generic
-// up until actually invoking the store methods above
-// example: 
-// invoked in the dispatcher as:
-//   store.Method(store1, args); 
-// invokes the methods defined above as
-//   store.Method(store1, args[0], args[1] ... etc )
-storeMethods = _.mapValues(storeMethods, function(fn) {
-  return function(){
-    var store = arguments[0];
-    var dispatchedArgs = arguments[1].length ? arguments[1] : undefined;
-    var args = [ store ].concat(dispatchedArgs);
-    return fn.apply(null, args);
-  }
-});
+var sheetStateStore = require('../stores/sheetStateStore');
+var sheetStateMethods = sheetStateStore.stateMethods;
+var sheetState = sheetStateStore.tableRows;
 
 /////////////////////////////
 // Store Public Methods
@@ -87,7 +29,10 @@ var AppStore = _.extend(EventEmitter.prototype, {
     this.removeEventListener(CHANGE_EVENT, callback);
   },
   getRows: function(){
-    return tableRows;
+    return sheetData;
+  },
+  getRowsState: function(){
+    return sheetState;
   }
 });
 
@@ -98,17 +43,28 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
   switch(action.type) {
 
     case ActionTypes.addCol:
-      tableRows = storeMethods._addCol(tableRows, payload.action.args);
+      sheetData = sheetDataMethods._addCol(sheetData, payload.action.args);
+      sheetState = sheetStateMethods._addCol(sheetState, payload.action.args);
       break;
     case ActionTypes.rmCol:
-      tableRows = storeMethods._rmCol(tableRows, payload.action.args);
+      sheetData = sheetDataMethods._rmCol(sheetData, payload.action.args);
+      sheetState = sheetStateMethods._rmCol(sheetState, payload.action.args);
       break;
     
     case ActionTypes.addRow:
-      tableRows = storeMethods._addRow(tableRows, payload.action.args);
+      sheetData = sheetDataMethods._addRow(sheetData, payload.action.args);
+      sheetState = sheetStateMethods._addRow(sheetState, payload.action.args);
       break;
     case ActionTypes.rmRow:
-      tableRows = storeMethods._rmRow(tableRows, payload.action.args);
+      sheetData = sheetDataMethods._rmRow(sheetData, payload.action.args);
+      sheetState = sheetStateMethods._rmRow(sheetState, payload.action.args);
+      break;
+
+    case ActionTypes.selected:
+      sheetState = sheetStateMethods._selected(sheetState, payload.action.args);
+      break;
+    case ActionTypes.editing:
+      sheetState = sheetStateMethods._editing(sheetState, payload.action.args);
       break;
 
     default:

@@ -1,7 +1,8 @@
 var _ = {
   mapValues: require('lodash/object/mapValues'),
   toArray: require('lodash/lang/toArray'),
-  extend: require('lodash/object/extend')
+  extend: require('lodash/object/extend'),
+  any: require('lodash/collection/any')
 };
 var io = window.io && window.io() || null;
 
@@ -38,8 +39,18 @@ var FromServerActions = _.mapValues(ActionTypes, function(fnName){
 var AppActions = _.mapValues(ActionTypes, function(fnName){
   if (fnName === 'undo'){
     return function(){ commandManager.undo() };
+
   } else if (fnName === 'redo'){
     return function(){ commandManager.redo() };
+
+  } else if (_.any(AppConstants.notForCommandManager, fnName) ) {
+    return function(){
+      AppDispatcher[fnName]({
+        type: fnName,
+        args: _.toArray(arguments)
+      });
+    };
+
   } else {
     return function(){
       AppDispatcher[fnName]({
