@@ -29,10 +29,10 @@ var AppStore = _.extend(EventEmitter.prototype, {
     this.removeEventListener(CHANGE_EVENT, callback);
   },
   getTable: function(){
-    return sheetData;
+    return JSON.parse(JSON.stringify(sheetData));
   },
   getTableState: function(){
-    return sheetState;
+    return JSON.parse(JSON.stringify(sheetState));
   }
 });
 

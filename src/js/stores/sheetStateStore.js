@@ -18,7 +18,7 @@ var defaultRow = function(length) {
   });
 };
 var defaultTable = function() {
-  this.rows = _.range(0,30).map(function(num){
+  this.rows = _.range(0,300).map(function(num){
     return new defaultRow();
   });
   this.cellInEditMode = false;
@@ -35,18 +35,20 @@ var lastEditing = {row:1, col: 1};
 var stateMethods = {
   _addCol: function(table, index) {
     if (index === undefined){
-      return table = table.rows.map(function(row,rowIndex){
-        return row.cells.concat(new cell());
+      table.rows = table.rows.map(function(row,rowIndex){
+        row.cells = row.cells.concat(new cell());
+        return row;
       });
+      return table;
     }
   },
   _rmCol: function(table, index) {
     if (index === undefined){
-      return table = table.rows.map(function(row,rowIndex){
-        var row = row.slice();
+      table.rows = table.rows.map(function(row,rowIndex){
         row.cells.pop();
         return row;
       });
+      return table;
     }
   },
 
@@ -92,7 +94,7 @@ var stateMethods = {
     if (table.cellInEditMode){
       return table;
     }
-    if (move === 'right' && lastSelected.col < table.rows[0].cells.length - 2){
+    if (move === 'right' && lastSelected.col < table.rows[0].cells.length - 1){
       return this._selected(table, lastSelected.row, lastSelected.col + 1);
 
     } else if (move === 'left' && lastSelected.col > 0){

@@ -1,6 +1,5 @@
 var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
-var AppStore = require('../stores/app-store');
 var ROW = require('./row');
 
 var getAlphaHeader = function(num){
@@ -9,70 +8,50 @@ var getAlphaHeader = function(num){
   return alpha[num];
 }
 
-function getTableData(){
-  return AppStore.getTable();
-}
-
-function getTableState(){
-  return AppStore.getTableState();
-}
-
 var TABLE = React.createClass({
-  getInitialState: function(){
-    return {
-      table: getTableData(),
-      tableState: getTableState()
-    };
-  },
-  componentWillMount: function(){
-    AppStore.addChangeListener(this._onChange);
-  },
-  _onChange: function(){
-    this.setState({
-      table: getTableData(),
-      tableState: getTableState()
-    });
-  },
   navigate: function(e) {
-    if (this.state.tableState.cellInEditMode) {
-      return;
+  if (this.props.tableState.cellInEditMode){
+    return;
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'Tab' && e.shiftKey){
+      e.stopPropagation();
+      e.preventDefault();
+      AppActions.move('left');
+    } else if (e.key === 'ArrowRight' || e.key === 'Tab'){
+      e.stopPropagation();
+      e.preventDefault();
+      AppActions.move('right');
+    } else if (e.key === 'ArrowUp' || e.key === 'Enter' && e.shiftKey){
+      e.stopPropagation();
+      e.preventDefault();
+      AppActions.move('up');
+    } else if (e.key === 'ArrowDown' || e.key === 'Enter'){
+      e.stopPropagation();
+      e.preventDefault();
+      AppActions.move('down');
+    } else if (e.key !== 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey){
+      e.stopPropagation();
+      e.preventDefault();
+      AppActions.enterEditMode();
     }
-    if (e.key === 'ArrowLeft'){
-        e.stopPropagation();
-        e.preventDefault();
-        AppActions.move('left');
-      } else if (e.key === 'ArrowRight'){
-        e.stopPropagation();
-        e.preventDefault();
-        AppActions.move('right');
-      } else if (e.key === 'ArrowUp'){
-        e.stopPropagation();
-        e.preventDefault();
-        AppActions.move('up');
-      } else if (e.key === 'ArrowDown'){
-        e.stopPropagation();
-        e.preventDefault();
-        AppActions.move('down');
-      } else if (e.key === 'Enter'){
-        e.stopPropagation();
-        e.preventDefault();
-        AppActions.enterEditMode();
-      }
   },
   componentDidUpdate: function() {
-    if (!this.state.tableState.cellInEditMode){
+    if (!this.props.tableState.cellInEditMode){
+      var x = window.scrollX;
+      var y = window.scrollY;
       this.getDOMNode().focus();
+      window.scrollTo(x, y);
     }
   },
   render: function(){
     var self = this;
-    var rows = this.state.table.rows.map(function(rowData,i){
+    var rows = this.props.table.rows.map(function(rowData,i){
       return (
-        <ROW key={i} row={rowData} state={self.state.tableState.rows[i]} index={i} />
+        <ROW key={i} row={rowData} state={self.props.tableState.rows[i]} index={i} />
       )
     });
 
-    var rowsHeaders = this.state.table.rows[0].cells.concat(null)
+    var rowsHeaders = this.props.table.rows[0].cells.concat(null)
       .slice()
       .map(function(row,colIndex){
         return <th key={colIndex} className={"r-spreadsheet"}> {getAlphaHeader(colIndex)} </th>
