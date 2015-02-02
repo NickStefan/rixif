@@ -12,7 +12,7 @@ var ROW = React.createClass({
       if (i === 0){
         return (<th className={"r-spreadsheet"} key={i}>{self.props.index + 1 }</th>);
       } else {
-        return (<CELL cellData={cellData} state={self.props.state.cells[i-1]} colIndex={i-1} rowIndex={self.props.index} key={i} />); 
+        return (<CELL cellData={cellData} state={ self.props.state.get('cells').get(i-1) } colIndex={i-1} rowIndex={self.props.index} key={i} />); 
       }
     });
     return (
@@ -20,6 +20,13 @@ var ROW = React.createClass({
         {cells}
       </tr>
     )
+  },
+  shouldComponentUpdate: function(nextProps,nextState){
+    if (this.props.state === nextProps.state &&
+        this.props.row === nextProps.row) {
+      return false;
+    }
+    return true;
   }
 });
 

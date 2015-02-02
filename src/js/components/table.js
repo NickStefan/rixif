@@ -10,7 +10,7 @@ var getAlphaHeader = function(num){
 
 var TABLE = React.createClass({
   navigate: function(e) {
-  if (this.props.tableState.cellInEditMode){
+  if (this.props.tableState.get('cellInEditMode')){
     return;
   }
   if (e.key === 'ArrowLeft' || e.key === 'Tab' && e.shiftKey){
@@ -36,7 +36,7 @@ var TABLE = React.createClass({
     }
   },
   componentDidUpdate: function() {
-    if (!this.props.tableState.cellInEditMode){
+    if (!this.props.tableState.get('cellInEditMode')){
       var x = window.scrollX;
       var y = window.scrollY;
       this.getDOMNode().focus();
@@ -50,7 +50,7 @@ var TABLE = React.createClass({
       // mutable array of immutables
       .map(function(rowData,i){
       return (
-        <ROW key={i} row={rowData} state={self.props.tableState.rows[i]} index={i} />
+        <ROW key={i} row={rowData} state={ self.props.tableState.get('rows').get(i) } index={i} />
       )
     });
       

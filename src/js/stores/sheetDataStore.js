@@ -22,8 +22,7 @@ var defaultRow = function(length) {
 };
 var defaultTable = function() {
   return Immutable.Map({
-    rows: Immutable.List(_.range(0,300).map(function(){ return defaultRow(); })),
-    cellInEditMode: false
+    rows: Immutable.List(_.range(0,3000).map(function(){ return defaultRow(); }))
   });
 };
 

@@ -32,7 +32,7 @@ var AppStore = _.extend(EventEmitter.prototype, {
     return sheetData;
   },
   getTableState: function(){
-    return JSON.parse(JSON.stringify(sheetState));
+    return sheetState;
   }
 });
 

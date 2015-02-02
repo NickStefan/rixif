@@ -4,11 +4,11 @@ var AppActions = require('../actions/app-actions');
 
 var CELL = React.createClass({
   handleClick: function(e) {
-    if (!this.props.state.selected){
+    if (!this.props.state.get('selected')){
       AppActions.selected(this.props.rowIndex, this.props.colIndex);
-    } else if (this.props.state.selected && !this.props.state.editing){
+    } else if (this.props.state.get('selected') && !this.props.state.get('editing')){
       AppActions.editing(this.props.rowIndex, this.props.colIndex);
-    } else if (this.props.state.selected && this.props.state.editing){
+    } else if (this.props.state.get('selected') && this.props.state.get('editing')){
       // do nothing
     }
   },
@@ -17,9 +17,9 @@ var CELL = React.createClass({
     e.stopPropagation();
     var newValue = e.target.value;
     var formula = newValue.length && newValue[0] === '=' ? true : false;
-    var oldValue = formula ? this.props.cellData.formula : this.props.cellData.get('value');
+    var oldValue = formula ? this.props.cellData.get('formula') : this.props.cellData.get('value');
 
-    if (formula && newValue !== this.props.cellData.formula){
+    if (formula && newValue !== this.props.cellData.get('formula')){
       AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
 
     } else if (!formula && newValue !== this.props.cellData.value){
@@ -50,11 +50,11 @@ var CELL = React.createClass({
     var cellFormula = this.props.cellData.get('formula');
     var cellEditValue = cellFormula ? cellFormula : cellValue;
     var cellEdit = <input autoFocus onKeyDown={this.checkCell} className={'cell-edit'} type='text' defaultValue={cellEditValue} />;
-    var cellView = this.props.state.editing ? cellEdit : cellValue;
+    var cellView = this.props.state.get('editing') ? cellEdit : cellValue;
 
     /* a css class toggle object based on state */
     var classes = classSet({
-      'selected-cell': this.props.state.selected,
+      'selected-cell': this.props.state.get('selected'),
       'cell-view': true
     });
 
@@ -65,8 +65,7 @@ var CELL = React.createClass({
     )
   },
   shouldComponentUpdate: function(nextProps,nextState){
-    if (this.props.state.selected === nextProps.state.selected &&
-        this.props.state.editing === nextProps.state.editing  &&
+    if (this.props.state === nextProps.state &&
         this.props.cellData === nextProps.cellData) {
       return false;
     }
