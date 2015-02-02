@@ -45,31 +45,33 @@ var TABLE = React.createClass({
   },
   render: function(){
     var self = this;
-    var rows = this.props.table.rows.map(function(rowData,i){
+    var rows = this.props.table.get('rows')
+      .toArray()
+      // mutable array of immutables
+      .map(function(rowData,i){
       return (
         <ROW key={i} row={rowData} state={self.props.tableState.rows[i]} index={i} />
       )
     });
-
-    var rowsHeaders = this.props.table.rows[0].cells.concat(null)
+      
+    var rowsHeaders = this.props.table.get('rows').first().get('cells')
+      .toArray()
+      // mutable array of immutables
+      .concat(null)
       .slice()
       .map(function(row,colIndex){
-        return <th key={colIndex} className={"r-spreadsheet"}> {getAlphaHeader(colIndex)} </th>
+        return <th key={colIndex} className={"r-spreadsheet"}>{getAlphaHeader(colIndex)}</th>
     });
 
     return (
       <table tabIndex={-1} onKeyDown={this.navigate} className={"r-spreadsheet"}>
         <thead>
           <tr>
-
             {rowsHeaders}
-
           </tr>
         </thead>
         <tbody>
-
-          {rows}
-
+            {rows}
         </tbody>
       </table>
     )

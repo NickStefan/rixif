@@ -2,7 +2,7 @@ var _ = {
   mapValues: require('lodash/object/mapValues'),
   toArray: require('lodash/lang/toArray'),
   extend: require('lodash/object/extend'),
-  any: require('lodash/collection/any')
+  has: require('lodash/object/has')
 };
 var io = window.io && window.io() || null;
 
@@ -43,7 +43,7 @@ var AppActions = _.mapValues(ActionTypes, function(fnName){
   } else if (fnName === 'redo'){
     return function(){ commandManager.redo() };
 
-  } else if (_.any(AppConstants.notForCommandManager, fnName) ) {
+  } else if (_.has(AppConstants.notForCommandManager, fnName) ) {
     return function(){
       AppDispatcher[fnName]({
         type: fnName,

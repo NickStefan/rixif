@@ -17,7 +17,7 @@ var CELL = React.createClass({
     e.stopPropagation();
     var newValue = e.target.value;
     var formula = newValue.length && newValue[0] === '=' ? true : false;
-    var oldValue = formula ? this.props.cellData.formula : this.props.cellData.value;
+    var oldValue = formula ? this.props.cellData.formula : this.props.cellData.get('value');
 
     if (formula && newValue !== this.props.cellData.formula){
       AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
@@ -46,8 +46,10 @@ var CELL = React.createClass({
     }
   },
   render: function(){
-    var cellValue = this.props.cellData.value;
-    var cellEdit = <input autoFocus onKeyDown={this.checkCell} className={'cell-edit'} type='text' defaultValue={cellValue} />;
+    var cellValue = this.props.cellData.get('value');
+    var cellFormula = this.props.cellData.get('formula');
+    var cellEditValue = cellFormula ? cellFormula : cellValue;
+    var cellEdit = <input autoFocus onKeyDown={this.checkCell} className={'cell-edit'} type='text' defaultValue={cellEditValue} />;
     var cellView = this.props.state.editing ? cellEdit : cellValue;
 
     /* a css class toggle object based on state */
@@ -65,7 +67,7 @@ var CELL = React.createClass({
   shouldComponentUpdate: function(nextProps,nextState){
     if (this.props.state.selected === nextProps.state.selected &&
         this.props.state.editing === nextProps.state.editing  &&
-        this.props.cellData.value === nextProps.cellData.value) {
+        this.props.cellData === nextProps.cellData) {
       return false;
     }
     return true;

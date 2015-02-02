@@ -29,7 +29,7 @@ var AppStore = _.extend(EventEmitter.prototype, {
     this.removeEventListener(CHANGE_EVENT, callback);
   },
   getTable: function(){
-    return JSON.parse(JSON.stringify(sheetData));
+    return sheetData;
   },
   getTableState: function(){
     return JSON.parse(JSON.stringify(sheetState));
@@ -63,6 +63,10 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
 
     case ActionTypes.changeCell:
       sheetData = sheetDataMethods._changeCell(sheetData, payload.action.args);
+      sheetState = sheetStateMethods._editing(sheetState, undefined);
+      break;
+    case ActionTypes.unchangeCell:
+      sheetData = sheetDataMethods._unchangeCell(sheetData, payload.action.args);
       sheetState = sheetStateMethods._editing(sheetState, undefined);
       break;
 

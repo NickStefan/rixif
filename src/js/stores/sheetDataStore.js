@@ -1,3 +1,4 @@
+var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
   isUndefined: require('lodash/lang/isUndefined'),
@@ -8,19 +9,22 @@ var _ = {
 // Store Model
 
 var cell = function(val) {
-  this.value = val || "";
+  val = val || "";
+  return Immutable.Map({
+    value: val
+  });
 };
 var defaultRow = function(length) {
   length = length || 10;
-  this.cells = _.range(0,length).map(function(v,k){
-    return new cell();
+  return Immutable.Map({
+    cells: Immutable.List(_.range(0,length).map(function(){ return cell(); }))
   });
 };
 var defaultTable = function() {
-  this.rows = _.range(0,300).map(function(num){
-    return new defaultRow();
+  return Immutable.Map({
+    rows: Immutable.List(_.range(0,300).map(function(){ return defaultRow(); })),
+    cellInEditMode: false
   });
-  this.cellInEditMode = false;
 };
 
 var table = new defaultTable();
@@ -29,47 +33,49 @@ var table = new defaultTable();
 // Private Store Methods
 var storeMethods = {
   _addCol: function(table, index) {
-    if (index === undefined){
-      table.rows = table.rows.map(function(row,rowIndex){
-        row.cells = row.cells.concat(new cell());
-        return row;
-      });
-      return table;
-    }
+    len = table.get('rows').first().get('cells').size;
+    index = index !== undefined ? index : len;
+    return table.set('rows', table.get('rows').map(function(row,rowIndex){
+      return row.set('cells', row.get('cells').splice( index,0,cell() ));
+    }));
   },
   _rmCol: function(table, index) {
-    if (index === undefined){
-      table.rows = table.rows.map(function(row,rowIndex){
-        row.cells.pop();
-        return row;
-      });
-      return table;
-    }
+    len = table.get('rows').first().get('cells').size - 1;
+    index = index !== undefined ? index : len;
+    return table.set('rows', table.get('rows').map(function(row,rowIndex){
+      return row.set('cells', row.get('cells').splice( index,1 ));
+    }));
   },
 
   _addRow: function(table, index) {
-    if (index === undefined){
-      var newRow = _.isUndefined(table.rows[0]) ? new defaultRow() : new defaultRow(table.rows[0].length);
-      table.rows.push(newRow);
-      return table;
-    }
+    len = table.get('rows').size - 1;
+    index = index !== undefined ? index : len;
+    var newRow = _.isUndefined(table.get('rows').first()) ?
+      defaultRow() : 
+      defaultRow(table.get('rows').first().size);
+    return table.set('rows', table.get('rows').splice( index,0,newRow ));
   },
   _rmRow: function(table, index) {
-    if (index === undefined){
-      table.rows.pop();
-      return table;
-    }
+    len = table.get('rows').size - 1;
+    index = index !== undefined ? index : len;
+    return table.set('rows', table.get('rows').splice( index,1 ));
   },
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     if (newValue.length && newValue[0] === '='){
-      table.rows[row].cells[col].formula = newValue;
+      return table.updateIn(['rows',row,'cells',col],function(cell){
+        return cell.set('formula', newValue);
+      });
     } else {
-      table.rows[row].cells[col].value = newValue;
+      return table.updateIn(['rows',row,'cells',col],function(cell){
+        return cell.set('value', newValue);
+      });
     }
     // this._updateFormulas();
-    return table;
   },
+  _unchangeCell: function(table, row, col, newValue, oldValue){
+    return this._changeCell(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
+  }
 }
 
 // map the invoked arguments to the expected arguments defined above.
@@ -80,13 +86,13 @@ var storeMethods = {
 //   store.Method(store1, args); 
 // invokes the methods defined above as
 //   store.Method(store1, args[0], args[1] ... etc )
-storeMethods = _.mapValues(storeMethods, function(fn) {
+storeMethods = _.mapValues(storeMethods, function(fn,fnName,classObj) {
   return function(){
     var store = arguments[0];
     arguments[1] = arguments[1] || [];
     var dispatchedArgs = arguments[1].length ? arguments[1] : undefined;
     var args = [ store ].concat(dispatchedArgs);
-    return fn.apply(null, args);
+    return fn.apply(classObj, args);
   }
 });
 

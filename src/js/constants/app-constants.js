@@ -13,9 +13,11 @@ module.exports = {
     selected: 'selected',
     editing: 'editing',
     enterEditMode: 'enterEditMode',
-
     move: 'move',
-    changeCell: 'changeCell'
+
+    
+    changeCell: 'changeCell',
+    unchangeCell: 'unchangeCell'
   },
 
   notForCommandManager: {
@@ -33,6 +35,7 @@ module.exports = {
     addRow: 'rmRow',
     rmRow: 'addRow',
 
-    changeCell: 'changeCell'
+    changeCell: 'unchangeCell',
+    unchangeCell: 'changeCell'
   }
 };
