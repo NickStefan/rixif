@@ -21,9 +21,11 @@ var defaultRow = function(length) {
     cells: Immutable.List(_.range(0,length).map(function(){ return cell(); }))
   });
 };
-var defaultTable = function() {
+var defaultTable = function(rows,cols) {
+  rows = rows || 30;
+  cols = cols || 10;
   return Immutable.Map({
-    rows: Immutable.List(_.range(0,3000).map(function(){ return defaultRow(); })),
+    rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
     cellInEditMode: false
   });
 };

@@ -20,13 +20,62 @@ var defaultRow = function(length) {
     cells: Immutable.List(_.range(0,length).map(function(){ return cell(); }))
   });
 };
-var defaultTable = function() {
+var defaultTable = function(rows,cols) {
+  rows = rows || 30;
+  cols = cols || 10;
   return Immutable.Map({
-    rows: Immutable.List(_.range(0,3000).map(function(){ return defaultRow(); }))
+    rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); }))
   });
 };
 
-var table = new defaultTable();
+var table = defaultTable();
+
+/////////////////////////////
+// Table Formulas Model
+var tableFormulas = function(rows,cols) {
+  rows = rows || 30;
+  cols = cols || 10;
+  return _.range(0,rows).map(function(){ 
+    return _.range(0,cols).map(function(){
+      return {
+        iDepOn:[],
+        depOnMe:[],
+        value: null,
+        formula: null,
+        fn: null
+      }
+    })
+  });
+};
+
+var initRows = table.get('rows').size;
+var initCols = table.get('rows').first().get('cells').size;
+var tableFormulas = tableFormulas(initRows,initCols);
+
+/////////////////////////////
+// Private Formula Methods
+
+var tableFormulaMethods = {
+  _addCol: function(){},
+  _rmCol: function(){},
+  _addRow: function(){},
+  _rmRow: function(){},
+
+  _parseFormula: function(table, row, col, formula){
+    // validate (get rid of bad characters)
+    // load up iDepOn, for each of those, add me to depOnMe
+    // build a fn, eval it to a real fn, load it to row.cell.fn
+  },
+  _getValues: function(table, row, col){
+    // build arg array of values from iDepOn
+    // return arg array
+  },
+  _eval: function(table, row, col, args){
+    // take args and 
+    // return evalued results
+  }
+};
+
 
 /////////////////////////////
 // Private Store Methods
@@ -70,7 +119,7 @@ var storeMethods = {
         return cell.set('value', newValue);
       });
     }
-    // this._updateFormulas();
+
   },
   _unchangeCell: function(table, row, col, newValue, oldValue){
     return this._changeCell(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
@@ -97,5 +146,7 @@ storeMethods = _.mapValues(storeMethods, function(fn,fnName,classObj) {
 
 module.exports = {
   storeMethods: storeMethods,
-  table: table
+  table: table,
+  formulaMethods: formulaMethods,
+  tableFormulas: tableFormulas
 }
