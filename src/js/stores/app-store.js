@@ -46,23 +46,19 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
     case ActionTypes.addCol:
       sheetData = sheetDataMethods._addCol(sheetData, payload.action.args);
       sheetState = sheetStateMethods._addCol(sheetState, payload.action.args);
-      sheetFormulas = sheetFormulaMethods._addCol(sheetFormulas, payload.action.args);
       break;
     case ActionTypes.rmCol:
       sheetData = sheetDataMethods._rmCol(sheetData, payload.action.args);
       sheetState = sheetStateMethods._rmCol(sheetState, payload.action.args);
-      sheetFormulas = sheetFormulaMethods._rmCol(sheetFormulas, payload.action.args);
       break;
     
     case ActionTypes.addRow:
       sheetData = sheetDataMethods._addRow(sheetData, payload.action.args);
       sheetState = sheetStateMethods._addRow(sheetState, payload.action.args);
-      sheetFormulas = sheetFormulaMethods._addRow(sheetFormulas, payload.action.args);
       break;
     case ActionTypes.rmRow:
       sheetData = sheetDataMethods._rmRow(sheetData, payload.action.args);
       sheetState = sheetStateMethods._rmRow(sheetState, payload.action.args);
-      sheetFormulas = sheetFormulaMethods._rmRow(sheetFormulas, payload.action.args);
       break;
 
     case ActionTypes.changeCell:

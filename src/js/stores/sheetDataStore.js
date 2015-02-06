@@ -71,12 +71,14 @@ var storeMethods = {
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     var tmpTable = this._changeCellUser.apply(this,arguments);
-    return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
+    return tmpTable;
+    //return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
   },
 
   _unchangeCell: function(table, row, col, newValue, oldValue){
     var tmpTable = this._changeCellUser(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
-    return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
+    return tmpTable;
+    //return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
   },
 
   _changeCellUser: function(table, row, col, newValue, oldValue){
@@ -212,7 +214,5 @@ storeMethods = _.mapValues(storeMethods, function(fn,fnName,classObj) {
 
 module.exports = {
   storeMethods: storeMethods,
-  table: table,
-  formulaMethods: formulaMethods,
-  tableFormulas: tableFormulas
+  table: table
 };
