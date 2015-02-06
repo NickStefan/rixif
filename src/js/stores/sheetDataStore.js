@@ -112,14 +112,37 @@ var storeMethods = {
     // validate (get rid of bad characters)
     // load up iDepOn, for each of those, add me to depOnMe
     // build a fn, eval it to a real fn, load it to row.cell.fn
+
+    // regex out all of the bad things
+
+    // loop formula and parse out list of iDepOn cell Obj
+    // cell.row,col,name
+
+    // build string fn, while replacing each iDepOn with its iDepOn cell.name
+    // build arguments names to match
+    // eval into a ready javascript function
+
   },
   _getValues: function(table, row, col){
     // build arg array of values from iDepOn
     // return arg array
+    return table.getIn(['row',row,'col',col,'iDepOn'])
+    .map(function(cell,key){
+      var rowDep = cell.get('row');
+      var colDep = cell.get('col');
+      return {
+        value: table.getIn(['row',rowDep,'col',colDep,value]),
+        name: rowDep.toString() + "_" + colDep.toString() 
+      }
+    });
   },
   _eval: function(table, row, col, args){
     // take args and 
     // return evalued results
+    var fn = table.getIn(['row',row,'col',col,'fn']);
+    return table.updateIn(['row',row,'col',col],function(cell){
+      return cell.set('value', fn.apply(null,args));
+    });
   },
 
 
@@ -135,7 +158,7 @@ var storeMethods = {
     function recurse(table, row, col, newValue, oldValue){
       // if newValue === formula
       if (newValue.length && newValue[0] === '='){
-        tmpTable = sheetFormulaMethods._parseFormula(table, row, col, newValue);
+        tmpTable = this._parseFormula(table, row, col, newValue);
         reCalc(tmpTable, row, col);
 
       // if newValue === value
@@ -156,13 +179,13 @@ var storeMethods = {
       }
 
       function reCalc(table, row, col){
-        var args = sheetFormulas._getValues(row,col);
-        var value = sheetFormulas._eval(row,col,args);
+        var args = this._getValues(row,col);
+        var value = this._eval(row,col,args);
         updateFormulas(table, row, col, value);
       }
 
       function depOnMeLooper(arr){
-
+        // HOW???
       }
     }
 
