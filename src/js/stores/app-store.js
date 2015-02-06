@@ -12,45 +12,9 @@ var sheetDataStore = require('../stores/sheetDataStore');
 var sheetDataMethods = sheetDataStore.storeMethods;
 var sheetData = sheetDataStore.table;
 
-var sheetFormulas = sheetData.tableFormulas;
-var sheetFormulaMethods = sheetData.formulaMethods;
-
 var sheetStateStore = require('../stores/sheetStateStore');
 var sheetStateMethods = sheetStateStore.stateMethods;
 var sheetState = sheetStateStore.table;
-
-/////////////////////////////
-// Private Multi Store Communications
-
-var updateFormulas = function(row, col, newValue, oldValue){
-  
-  // if newValue === formula
-  if (newValue.length && newValue[0] === '='){
-    sheetData = sheetData.updateIn(['rows',row,'cells',col],function(cell){
-      return cell.set('formula', newValue);
-    });
-    sheetFormulaMethods._parseFormula(sheetFormulas, row, col, newValue);
-    reCalc(row,col);
-
-  // if newValue === value
-  } else {
-
-    sheetData = sheetData.updateIn(['rows',row,'cells',col],function(cell){
-      return cell.set('value', newValue);
-    });
-    sheetFormulas[row][col].value = newValue;
-    //   loop depOnMe RECURSIVE BASE CASE ENDS HERE ON NO DEPENDENCIES
-    sheetFormulas[row][col].depOnMe.forEach(function(cell){
-      reCalc(cell.row, cell.col);
-    });
-  }
-
-  function reCalc(row,col){
-    var args = sheetFormulas._getValues(row,col);
-    var value = sheetFormulas._eval(row,col,args);
-    updateFormulas(row, col, value);
-  }
-};
 
 /////////////////////////////
 // Store Public Methods
@@ -104,14 +68,11 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
     case ActionTypes.changeCell:
       sheetData = sheetDataMethods._changeCell(sheetData, payload.action.args);
       sheetState = sheetStateMethods._editing(sheetState, undefined);
-      updateFormulas(payload.action.args);
       break;
 
     case ActionTypes.unchangeCell:
       sheetData = sheetDataMethods._unchangeCell(sheetData, payload.action.args);
       sheetState = sheetStateMethods._editing(sheetState, undefined);
-      var args = payload.action.args;
-      updateFormulas(args[0],args[1],args[3],args[2]);
       break;
 
 

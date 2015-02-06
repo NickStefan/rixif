@@ -6,12 +6,16 @@ var _ = {
 };
 
 /////////////////////////////
-// Store Model
+// Store Model 
 
 var cell = function(val) {
   val = val || "";
   return Immutable.Map({
-    value: val
+    value: val,
+    iDepOn: Immutable.List(),
+    depOnMe: Immutable.List(),
+    formula: undefined,
+    fn: undefined
   });
 };
 var defaultRow = function(length) {
@@ -29,52 +33,6 @@ var defaultTable = function(rows,cols) {
 };
 
 var table = defaultTable();
-
-/////////////////////////////
-// Table Formulas Model
-var tableFormulas = function(rows,cols) {
-  rows = rows || 30;
-  cols = cols || 10;
-  return _.range(0,rows).map(function(){ 
-    return _.range(0,cols).map(function(){
-      return {
-        iDepOn:[],
-        depOnMe:[],
-        value: null,
-        formula: null,
-        fn: null
-      }
-    })
-  });
-};
-
-var initRows = table.get('rows').size;
-var initCols = table.get('rows').first().get('cells').size;
-var tableFormulas = tableFormulas(initRows,initCols);
-
-/////////////////////////////
-// Private Formula Methods
-
-var tableFormulaMethods = {
-  _addCol: function(){},
-  _rmCol: function(){},
-  _addRow: function(){},
-  _rmRow: function(){},
-
-  _parseFormula: function(table, row, col, formula){
-    // validate (get rid of bad characters)
-    // load up iDepOn, for each of those, add me to depOnMe
-    // build a fn, eval it to a real fn, load it to row.cell.fn
-  },
-  _getValues: function(table, row, col){
-    // build arg array of values from iDepOn
-    // return arg array
-  },
-  _eval: function(table, row, col, args){
-    // take args and 
-    // return evalued results
-  }
-};
 
 
 /////////////////////////////
@@ -109,22 +67,107 @@ var storeMethods = {
     return table.set('rows', table.get('rows').splice( index,1 ));
   },
 
+
+
   _changeCell: function(table, row, col, newValue, oldValue) {
+    var tmpTable = this._changeCellUser.apply(this,arguments);
+    return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
+  },
+
+  _unchangeCell: function(table, row, col, newValue, oldValue){
+    var tmpTable = this._changeCellUser(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
+    return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
+  },
+
+  _changeCellUser: function(table, row, col, newValue, oldValue){
     if (newValue.length && newValue[0] === '='){
       return table.updateIn(['rows',row,'cells',col],function(cell){
-        return cell.set('formula', newValue);
+        return cell.set('formula', newValue)
+        .set('value', null)
+        .set('iDepOn', Immutable.List())
+        .set('fn', null)
+        .updateIn(['depOnMe'],function(depOnMe){
+          return depOnMe.map(function(depCell,key){
+            return depCell.set('changed',true);
+          });
+        });
       });
     } else {
       return table.updateIn(['rows',row,'cells',col],function(cell){
-        return cell.set('value', newValue);
+        return cell.set('value', newValue)
+        .set('formula', null)
+        .set('iDepOn', Immutable.List())
+        .set('fn', null)
+        .updateIn(['depOnMe'],function(depOnMe){
+          return depOnMe.map(function(depCell,key){
+            return depCell.set('changed',true);
+          });
+        });
       });
     }
-
   },
-  _unchangeCell: function(table, row, col, newValue, oldValue){
-    return this._changeCell(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
+
+
+  _parseFormula: function(table, row, col, formula){
+    // validate (get rid of bad characters)
+    // load up iDepOn, for each of those, add me to depOnMe
+    // build a fn, eval it to a real fn, load it to row.cell.fn
+  },
+  _getValues: function(table, row, col){
+    // build arg array of values from iDepOn
+    // return arg array
+  },
+  _eval: function(table, row, col, args){
+    // take args and 
+    // return evalued results
+  },
+
+
+  _updateFormulas: function(table, row, col, newValue, oldValue){
+  // MARK ALL THE depOnMe cells as 'changed' in the initial first cell change
+  // need to queue these and then only recalculate them when their deps
+  // are marked as changed
+
+    var tmpTable; 
+    recurse.apply(this,arguments);
+    return tmpTable;
+
+    function recurse(table, row, col, newValue, oldValue){
+      // if newValue === formula
+      if (newValue.length && newValue[0] === '='){
+        tmpTable = sheetFormulaMethods._parseFormula(table, row, col, newValue);
+        reCalc(tmpTable, row, col);
+
+      // if newValue === value
+      } else {
+
+        tmpTable = table.updateIn(['rows',row,'cells',col],function(cell){
+          return cell.set('value', newValue);
+        });
+
+        // breadth first over depth first recursion??
+
+        // loop depOnMe Recursive base case for _updateFormulas
+        // ends here on no more dependencies to update
+        depOnMe = depOnMeLooper(tmpTable.getIn(['rows',row,'cols',col,'depOnMe']));
+        depOnMe.forEach(function(cell){
+          reCalc(cell.row, cell.col);
+        });
+      }
+
+      function reCalc(table, row, col){
+        var args = sheetFormulas._getValues(row,col);
+        var value = sheetFormulas._eval(row,col,args);
+        updateFormulas(table, row, col, value);
+      }
+
+      function depOnMeLooper(arr){
+
+      }
+    }
+
   }
-}
+};
 
 // map the invoked arguments to the expected arguments defined above.
 // this is a convenience to keep actions, dispatchers, etc generic
@@ -141,7 +184,7 @@ storeMethods = _.mapValues(storeMethods, function(fn,fnName,classObj) {
     var dispatchedArgs = arguments[1].length ? arguments[1] : undefined;
     var args = [ store ].concat(dispatchedArgs);
     return fn.apply(classObj, args);
-  }
+  };
 });
 
 module.exports = {
@@ -149,4 +192,4 @@ module.exports = {
   table: table,
   formulaMethods: formulaMethods,
   tableFormulas: tableFormulas
-}
+};
