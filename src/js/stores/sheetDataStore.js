@@ -22,7 +22,7 @@ var cell = function(val) {
     iDepOn: Immutable.List(),
     depOnMe: Immutable.List(),
     formula: undefined,
-    fn: undefined
+    fn: undefined,
     needsReCalc: false
   });
 };
@@ -108,8 +108,6 @@ var storeMethods = {
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('formula', newValue)
         .set('value', null)
-        .set('iDepOn', Immutable.List())
-        .set('fn', fn)
         .set('needsReCalc', true);
       });
 
@@ -148,38 +146,49 @@ var storeMethods = {
     })
     .join(",");
 
+    
     // add used inputs to iDepOn, convert v0_1 to 0,1
-    var iDepOn = [];
-    args.split(",").forEach(function(cellDep){
-      var cellInfo = cellDep.split("_");
-      var rowDep = cellInfo[0].slice(1);
-      var colDep = cellInfo[1];
-      iDepOn.push({ row: row, col: col });
-    });
-
-    table = table.updateIn(['rows',row,'cells',col], function(cell){
-      return cell.set('iDepOn', cell.get('iDepOn').concat(iDepOn) );
-    });
-
-    // add me to the depOnMe for every cell in my iDepOn
-    iDepOn.forEach(function(depCell){
-      table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
-        return cell.push(depCell);
+    if (args.length){
+      var iDepOn = [];
+      args.split(",").forEach(function(cellDep){
+        var cellInfo = cellDep.split("_");
+        var rowDep = cellInfo[0].slice(1);
+        var colDep = cellInfo[1];
+        iDepOn.push({ row: row, col: col });
       });
-    });
+
+      table = table.updateIn(['rows',row,'cells',col], function(cell){
+        return cell.set('iDepOn', cell.get('iDepOn').concat(iDepOn) );
+      });
+
+      // add me to the depOnMe for every cell in my iDepOn
+      iDepOn.forEach(function(depCell){
+        table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
+          return cell.push(depCell);
+        });
+      });
+
+    // if no arguments, set iDepOn to empty List
+    } else {
+      table = table.updateIn(['rows',row,'cells',col],function(cell){
+        return cell.set('iDepOn', Immutable.List());
+      });
+    }
 
     // get supported built in formulas, ie SQUARE()
     // regex out all of the bad things (ie alert() etc)
     usedFormulas = formula.match(/[^\(\)\s\.][a-zA-Z]+[^_0-9\(\)\s\.]/g);
     var error;
-    usedFormulas.forEach(function(fn){
-      if (_.has(formulaClass, fn.toUpperCase())){
-        var regex = new RegExp("[^\(\)\s\.][" + fn + "]+[^_0-9\(\)\s\.]","g");
-        formula = formula.replace(regex, "this." + fn.toUpperCase());
-      } else {
-        error = function() { return "Error: is not a supported function";};
-      }
-    });
+    if (usedFormulas){
+      usedFormulas.forEach(function(fn){
+        if (_.has(formulaClass, fn.toUpperCase())){
+          var regex = new RegExp("[^\(\)\s\.][" + fn + "]+[^_0-9\(\)\s\.]","g");
+          formula = formula.replace(regex, "this." + fn.toUpperCase());
+        } else {
+          error = function() { return "Error: is not a supported function";};
+        }
+      });
+    }
 
     // build formula string and eval it to JS
     var fnStr = 'function(' + args + '){ return ' + formula + ';}';
@@ -194,7 +203,8 @@ var storeMethods = {
       return table.updateIn(['rows',row,'cells',col], function(cell){
         return cell.set('fn', eval("(" + fnStr + ")") );
       });
-    } catch {
+    } 
+    catch (e) {
       return table.updateIn(['rows',row,'cells',col], function(){
         return cell.set('fn', function(){ return "ERROR";} );
       });
@@ -247,7 +257,7 @@ var storeMethods = {
 
 
   _updateFormulas: function(table, row, col, newValue, oldValue){
-
+    debugger
     var tmpTable = table; 
     recurse.apply(this,arguments);
     return tmpTable;
@@ -264,6 +274,7 @@ var storeMethods = {
         tmpTable = reCalc(tmpTable, row, col);
         // get cell value
         newValue = tmpTable.getIn(['rows',row,'cells',col,'value']);
+      }
 
       // if newValue === a value (even after the above code transforms it)
       if (newValue){
@@ -300,8 +311,8 @@ var storeMethods = {
 
       }
     }
-
   }
+
 };
 
 // map the invoked arguments to the expected arguments defined above.

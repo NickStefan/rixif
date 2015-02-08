@@ -3,12 +3,11 @@ var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
 
 var colHelpers = require('../stores/col-num-helpers');
-var alphaArrFull = colHelpers.alphaArrFull;
+var spaceAlphaArrFull = colHelpers.spaceAlphaArrFull;
 
 var getAlphaHeader = function(num){
   if (num > 701) return null;
-  alphaArrFull.unshift(" ");
-  return alphaArrFull[num];
+  return spaceAlphaArrFull[num];
 }
 
 var TABLE = React.createClass({

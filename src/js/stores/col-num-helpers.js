@@ -18,11 +18,15 @@ alphaArr.forEach(function(v1){
   });
 });
 
+var spaceAlphaArrFull = alphaArrFull.slice();
+spaceAlphaArrFull.unshift(" ");
+
 alphaArrFull.forEach(function(v,k){
   alpha[v] = k;
 });
 
 module.exports = {
   alpha: alpha,
-  alphaArrFull: alphaArrFull
+  alphaArrFull: alphaArrFull,
+  spaceAlphaArrFull: spaceAlphaArrFull
 }

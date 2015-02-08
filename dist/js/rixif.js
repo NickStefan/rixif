@@ -28665,7 +28665,7 @@ var storeMethods = {
 
 
   _updateFormulas: function(table, row, col, newValue, oldValue){
-
+    debugger
     var tmpTable = table; 
     recurse.apply(this,arguments);
     return tmpTable;
