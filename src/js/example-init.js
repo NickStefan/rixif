@@ -1,9 +1,9 @@
-var RXSS = require('./components/app');
-/* or with an with `$ npm install rxss` */
-// var RXSS = require('rxss');
+var RIXIF = require('./components/app');
+/* or with an with `$ npm install rixif` */
+// var RIXIF = require('rixif');
 
 var React = require('react/dist/react-with-addons.js');
 
-React.render(<RXSS />, document.getElementById('rxss'));
+React.render(<RIXIF />, document.getElementById('rixif'));
 
 

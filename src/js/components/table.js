@@ -2,10 +2,13 @@ var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
 
+var colHelpers = require('../stores/col-num-helpers');
+var alphaArrFull = colHelpers.alphaArrFull;
+
 var getAlphaHeader = function(num){
-  if (num > 25) return null;
-  var alpha = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  return alpha[num];
+  if (num > 701) return null;
+  alphaArrFull.unshift(" ");
+  return alphaArrFull[num];
 }
 
 var TABLE = React.createClass({

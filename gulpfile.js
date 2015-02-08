@@ -11,16 +11,10 @@ gulp.task('browserify', function(){
   .pipe(concat('example-init.js'))
   .pipe(gulp.dest('dist/js'));
 
-  /* rx-spread-sheet-noRequire */
-  gulp.src('src/js/noRequire.js')
-  .pipe(browserify({transform: 'reactify', debug: true}))
-  .pipe(concat('rxss-noRequire.js'))
-  .pipe(gulp.dest('dist/js'));
-
-  /* rx-spread-sheet for require */
-  gulp.src('src/js/rxss.js')
-  .pipe(browserify({transform: 'reactify', debug: true}))
-  .pipe(concat('rxss.js'))
+  /* rixif for require */
+  gulp.src('src/js/rixif.js')
+  .pipe(browserify({transform: 'reactify', debug: false}))
+  .pipe(concat('rixif.js'))
   .pipe(gulp.dest('dist/js'));
 
 });
@@ -32,7 +26,7 @@ gulp.task('copy', function(){
   gulp.src('src/css/*')
   .pipe(gulp.dest('dist/css'));
 
-  gulp.src('dist/js/rxss.js')
+  gulp.src('dist/js/rixif.js')
   .pipe(rename('index.js'))
   .pipe(gulp.dest('./'));
 });
