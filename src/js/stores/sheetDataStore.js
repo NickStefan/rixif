@@ -2,7 +2,8 @@ var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
   isUndefined: require('lodash/lang/isUndefined'),
-  mapValues: require('lodash/object/mapValues')
+  mapValues: require('lodash/object/mapValues'),
+  uniq: require('lodash/array/uniq')
 };
 
 /////////////////////////////
@@ -101,7 +102,7 @@ var storeMethods = {
         return cell.set('formula', newValue)
         .set('value', null)
         .set('iDepOn', Immutable.List())
-        .set('fn', null)
+        .set('fn', this._parseFormula(table, row, col, newValue))
         .set('needsReCalc', true);
       });
 
@@ -131,19 +132,49 @@ var storeMethods = {
     // build string fn, while replacing each iDepOn with its iDepOn cell.name
     // build arguments names to match
     // eval into a ready javascript function
+    var formula = "=B5 + B5 + 5";
+    function transform(formula){
+    var alpha = {};
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(v,k){
+      alpha[v] = k;
+    });
+
+    formula = formula.slice(1);
+    var used = _.uniq(formula.match(/[a-zA-Z][0-9]/g));
+    var args = used.map(function(input){
+      var regex = new RegExp('['+ input[0] + '][0-9]+','g');
+      var varName = "v" + alpha[input[0]] + "_" + input[1];
+      formula = formula.replace(regex,varName);
+      return varName;
+    })
+    .sort(function(a,b){
+      return a.name < b.name ? -1 : 1;
+    })
+    .join(",");
+
+    var str = 'function(' + args + '){' + formula + '}';
+    return eval("("+str+")");
+  }
+  transform(formula);
 
   },
   _getValues: function(table, row, col){
     // build arg array of values from iDepOn
-    // return arg array
+    // return arg array sorted by row and col
     return table.getIn(['row',row,'col',col,'iDepOn'])
     .map(function(cell,key){
       var rowDep = cell.get('row');
       var colDep = cell.get('col');
       return {
         value: table.getIn(['row',rowDep,'col',colDep,value]),
-        name: rowDep.toString() + "_" + colDep.toString() 
+        name: "v" + rowDep.toString() + "_" + colDep.toString() 
       }
+    })
+    .sort(function(a,b){
+      return a.name < b.name ? -1 : 1;
+    })
+    .map(function(cell,key){
+      return cell.value;
     });
   },
   _eval: function(table, row, col, args){
@@ -176,10 +207,14 @@ var storeMethods = {
     recurse.apply(this,arguments);
     return tmpTable;
 
+    function reCalc(table, row, col){
+      var args = this._getValues(row,col);
+       return this._eval(row,col,args);
+    }
+
     function recurse(table, row, col, newValue, oldValue){
       // if newValue === a formula
       if (newValue.length && newValue[0] === '='){
-        tmpTable = this._parseFormula(tmpTable, row, col, newValue);
         tmpTable = reCalc(tmpTable, row, col);
         newValue = tmpTable.getIn(['rows'],row,'cells',col,'value']);
 
@@ -216,11 +251,6 @@ var storeMethods = {
           recurse(tmpTable, row, col, val);
         });
 
-      }
-
-      function reCalc(table, row, col){
-        var args = this._getValues(row,col);
-         return this._eval(row,col,args);
       }
     }
 
