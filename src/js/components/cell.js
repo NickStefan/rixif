@@ -64,6 +64,14 @@ var CELL = React.createClass({
       </td>
     )
   },
+  componentDidUpdate: function(){
+    if (this.props.state.get('editing')){
+      var el = this.getDOMNode();
+      var input = el.firstChild;
+      input.value += this.props.state.get('lastKey') || "";
+      input.selectionStart = input.selectionEnd = input.value.length;
+    }
+  },
   shouldComponentUpdate: function(nextProps,nextState){
     if (this.props.state === nextProps.state &&
         this.props.cellData === nextProps.cellData) {

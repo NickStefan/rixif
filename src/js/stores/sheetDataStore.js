@@ -16,7 +16,7 @@ var formulaClass = require('../stores/formulas');
 // Store Model 
 
 var cell = function(val) {
-  val = val || "";
+  val = val || null;
   return Immutable.Map({
     value: val,
     iDepOn: Immutable.List(),
@@ -79,31 +79,32 @@ var storeMethods = {
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     var tmpTable = this._changeCellUser.apply(this,arguments);
-    return tmpTable;
-    //return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
+    //return tmpTable;
+    return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
   },
 
   _unchangeCell: function(table, row, col, newValue, oldValue){
     var tmpTable = this._changeCellUser(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
-    return tmpTable;
-    //return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
+    //return tmpTable;
+    return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
   },
 
   _changeCellUser: function(table, row, col, newValue, oldValue){
     // if a formula
     if (newValue.length && newValue[0] === '='){
-      var tmpTable;
       var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
-      
       depOnMe.forEach(function(depObj,key){
-        var row = depObj.get('row');
-        var col = depObj.get('col');
-        tmpTable = tmpTable.updateIn(['rows',row,'cells',col],function(cell){
-          return cell.set('needsReCalc', true);
+        table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
+          // filter me out of my dependent cells "iDepOn" as that might
+          // change when i parse this new formula
+          var newDepOnMe = cell.get('depOnMe').filter(function(depOnMeObj){
+            return depOnMeObj.row !== row && depOnMeObj.col !== col;
+          });
+          return cell.set('needsReCalc', true)
+          .set('depOnMe', newDepOnMe);
         });
       });
 
-      table = tmpTable || table;
       table = this._parseFormula(table, row, col, newValue)
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('formula', newValue)
@@ -113,6 +114,17 @@ var storeMethods = {
 
     //if a value
     } else {
+      if (newValue === ""){
+        newValue = null;
+      }
+      var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
+      depOnMe.forEach(function(depObj,key){
+        var row = depObj.row;
+        var col = depObj.col;
+        table = table.updateIn(['rows',row,'cells',col],function(cell){
+          return cell.set('needsReCalc', true);
+        });
+      });
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('value', newValue)
         .set('formula', null)
@@ -125,9 +137,8 @@ var storeMethods = {
 
 
   _parseFormula: function(table, row, col, formula){
-    
     // regex out escaping characters and special characters
-    formula = formula.replace(/[\\\/\'\"\;\!\%\@\#\$\&\*\^]/g,"");
+    formula = formula.replace(/[\\\'\"\;\@\#\^]/g,"");
 
     // build function arguments and function variables
     formula = formula.slice(1);
@@ -136,13 +147,13 @@ var storeMethods = {
       var letter = input.match(/[a-zA-Z]+/)[0];
       var num = input.match(/[0-9]+/)[0];
       var regex = new RegExp('('+ letter + num + ')','g');
-      // reformat A1 to v0_0
-      var varName = "v" + alpha[ letter.toUpperCase() ] + "_" + (parseInt(num) - 1).toString();
+      // reformat A1 to v0_0 and B1 to v0_1
+      var varName = "v" + (parseInt(num) - 1).toString() + "_" + alpha[ letter.toUpperCase() ]; 
       formula = formula.replace(regex, varName);
       return varName;
     })
     .sort(function(a,b){
-      return a.name < b.name ? -1 : 1;
+      return a < b ? -1 : 1;
     })
     .join(",");
 
@@ -154,17 +165,25 @@ var storeMethods = {
         var cellInfo = cellDep.split("_");
         var rowDep = cellInfo[0].slice(1);
         var colDep = cellInfo[1];
-        iDepOn.push({ row: row, col: col });
+        iDepOn.push({ row: rowDep, col: colDep });
       });
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
-        return cell.set('iDepOn', cell.get('iDepOn').concat(iDepOn) );
+        var newDeps = Immutable.List();
+        return cell.set('iDepOn', newDeps.concat(iDepOn) );
       });
 
       // add me to the depOnMe for every cell in my iDepOn
       iDepOn.forEach(function(depCell){
+        if (!table.hasIn(['rows',depCell.row,'cells',depCell.col])){
+        //abort the loop the row or col doesnt exist
+        // ie a formula with B10000 + A1000000
+        return false;
+      }
         table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
-          return cell.push(depCell);
+          return cell.updateIn(['depOnMe'],function(depOnMe){ 
+            return depOnMe.push({ row:row, col:col });
+          });
         });
       });
 
@@ -182,10 +201,10 @@ var storeMethods = {
     if (usedFormulas){
       usedFormulas.forEach(function(fn){
         if (_.has(formulaClass, fn.toUpperCase())){
-          var regex = new RegExp("[^\(\)\s\.][" + fn + "]+[^_0-9\(\)\s\.]","g");
-          formula = formula.replace(regex, "this." + fn.toUpperCase());
+          var regex = new RegExp('[^\(\)\s\.][' + fn + ']+[^_0-9\(\)\s\.]','g');
+          formula = formula.replace(regex, 'this.' + fn.toUpperCase());
         } else {
-          error = function() { return "Error: is not a supported function";};
+          error = function() { return 'ERROR: noFn';};
         }
       });
     }
@@ -201,12 +220,12 @@ var storeMethods = {
 
     try {
       return table.updateIn(['rows',row,'cells',col], function(cell){
-        return cell.set('fn', eval("(" + fnStr + ")") );
+        return cell.set('fn', eval('(' + fnStr + ')') );
       });
     } 
     catch (e) {
-      return table.updateIn(['rows',row,'cells',col], function(){
-        return cell.set('fn', function(){ return "ERROR";} );
+      return table.updateIn(['rows',row,'cells',col], function(cell){
+        return cell.set('fn', function(){ return 'ERROR: evalFn';} );
       });
     }
   },
@@ -214,99 +233,102 @@ var storeMethods = {
   _getValues: function(table, row, col){
     // build arg array of values from iDepOn
     // return arg array sorted by row and col
-    return table.getIn(['row',row,'col',col,'iDepOn'], Immutable.List())
+    return table.getIn(['rows',row,'cells',col,'iDepOn'], Immutable.List())
     .map(function(cell,key){
-      var rowDep = cell.get('row');
-      var colDep = cell.get('col');
+      var rowDep = cell.row;
+      var colDep = cell.col;
       return {
-        value: table.getIn(['row',rowDep,'col',colDep,value], null),
-        name: "v" + rowDep.toString() + "_" + colDep.toString() 
+        value: table.getIn(['rows',rowDep,'cells',colDep,'value'], null),
+        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
       }
     })
     .sort(function(a,b){
       return a.name < b.name ? -1 : 1;
     })
     .map(function(cell,key){
-      return cell.value;
+      return isNaN(cell.value) || cell.value === null ? cell.value : parseInt(cell.value);
     });
   },
 
   _eval: function(table, row, col, args){
     // set all dependent cells as needing reCalc
-    var tmpTable;
     var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
-    // how to make this more defensive against row/cols that dont exist?!
     depOnMe.forEach(function(depObj,key){
-      var row = depObj.get('row');
-      var col = depObj.get('col');
-      tmpTable = tmpTable.updateIn(['rows',row,'cells',col],function(cell){
+      var row = depObj.row;
+      var col = depObj.col;
+      if (!table.hasIn(['rows',row,'cells',col])){
+        // if row or col doesnt exist
+        // ie a formula with B10000 + A1000000
+        return;
+      }
+      table = table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('needsReCalc', true);
       });
     });
-    table = tmpTable || table;
 
     // take args and 
     // return evalued results
-    var fn = table.getIn(['row',row,'col',col,'fn']);
-    return table.updateIn(['row',row,'col',col],function(cell){
+    var fn = table.getIn(['rows',row,'cells',col,'fn']);
+    return table.updateIn(['rows',row,'cells',col],function(cell){
       return cell
-      .set('value', fn.apply(formulaClass, args))
+      .set('value', fn.apply(formulaClass, args.toJS() ))
       .set('needsReCalc', false);
     });
   },
 
 
   _updateFormulas: function(table, row, col, newValue, oldValue){
-    debugger
+    var self = this;
     var tmpTable = table; 
     recurse.apply(this,arguments);
     return tmpTable;
 
     function reCalc(table, row, col){
-      var args = this._getValues(row,col);
-       return this._eval(row,col,args);
+      var args = this._getValues(table,row,col);
+       return this._eval(table, row,col,args);
     }
 
     function recurse(table, row, col, newValue, oldValue){
       // if newValue === a formula
       if (newValue.length && newValue[0] === '='){
         // use formula to calculate this cell's value
-        tmpTable = reCalc(tmpTable, row, col);
+        tmpTable = reCalc.call(self, tmpTable, row, col);
         // get cell value
         newValue = tmpTable.getIn(['rows',row,'cells',col,'value']);
       }
 
       // if newValue === a value (even after the above code transforms it)
-      if (newValue){
+      if (newValue || newValue === null || newValue === ""){
 
         // for each depOnMe cell
         // if all of depOnMe cell's iDepOn's 'needsReCalc' === false
         //    reCalc(depOnMe cell)
-        depOnMe = tmpTable.getIn(['rows',row,'cols',col,'depOnMe'], Immutable.List());
-        updatedDepOnMe = depOnMe.slice();
+        var depOnMe = tmpTable.getIn(['rows',row,'cells',col,'depOnMe'], Immutable.List());
+        var updatedDepOnMe = depOnMe.slice();
 
         while (depOnMe.size) {
 
           var depCell = depOnMe.findEntry(function(depCell,key){
             // depCells ALL iDepOns 'needsReCalc' === false
-            return depCell.get('iDepOn').every(function(iDepCell,key){
-              return tmpTable.getIn(['rows',iDepCell.get('row'),'cells',iDepCell.get('col'),'needsReCalc']) === false;
+            return tmpTable.getIn(['rows',depCell.row,'cells',depCell.col,'iDepOn']).every(function(iDepCell,key){
+              return tmpTable.getIn(['rows',iDepCell.row,'cells',iDepCell.col,'needsReCalc']) === false;
             });
           });
 
-          if (depCell.length){
+          if (depCell && depCell.length){
             depOnMe = depOnMe.splice(depCell[0],1);
-            tmpTable = reCalc(tmpTable, depCell[1].get('row'), depCell[1].get('col'));
+            tmpTable = reCalc.call(self, tmpTable, depCell[1].row, depCell[1].col);
           } else {
-            throw "dependents for " + row.toString() + " " + col.toString() + " cannot resolve";
+            console.log("skipping ", depOnMe.first().row, depOnMe.first().col);
+            depOnMe = depOnMe.pop();
           }
         }
 
         updatedDepOnMe.forEach(function(depCell){
-          var row = depCell.get('row');
-          var col = depCell.get('col');
+          var row = depCell.row;
+          var col = depCell.col;
           var val = tmpTable.getIn(['rows', row, 'cells', col, 'value'],null);
-          recurse(tmpTable, row, col, val);
+          recurse.call(self, tmpTable, row, col, val);
         });
 
       }

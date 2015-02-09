@@ -8,11 +8,11 @@ var _ = {
 /////////////////////////////
 // State Model
 
-var cell = function(val) {
-  val = val || "";
+var cell = function() {
   return Immutable.Map({
     selected: false,
-    editing: false
+    editing: false,
+    lastKey: ""
   });
 };
 var defaultRow = function(length) {
@@ -84,22 +84,24 @@ var stateMethods = {
     lastSelected = {row: row, col: col};
     return table;
   },
-  _editing: function(table, row, col) {
+  _editing: function(table, row, col, lastKey) {
     if (row === undefined) {
       return this._selected(table, lastEditing.row, lastEditing.col);
     }
     table = table.updateIn(['rows',lastEditing.row,'cells',lastEditing.col], function(cell) {
-      return cell.set('editing', false);
+      return cell.set('editing', false)
+      .set('lastKey',"");
     });
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
-      return cell.set('editing', true);
+      return cell.set('editing', true)
+      .set('lastKey',lastKey);
     });
     table = table.set('cellInEditMode', true);
     lastEditing = {row: row, col: col};
     return table;
   },
-  _enterEditMode: function(table) {
-    return this._editing(table,lastSelected.row, lastSelected.col);
+  _enterEditMode: function(table, lastKey) {
+    return this._editing(table,lastSelected.row, lastSelected.col, lastKey);
   },
 
   _move: function(table,move) {

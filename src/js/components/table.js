@@ -31,10 +31,20 @@ var TABLE = React.createClass({
       e.stopPropagation();
       e.preventDefault();
       AppActions.move('down');
-    } else if (e.key !== 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey){
+    } else if (e.key !== 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey){
       e.stopPropagation();
       e.preventDefault();
-      AppActions.enterEditMode();
+      var key;
+      if (e.key === 'Shift' || e.key === 'CapsLock'){
+        return;
+      }
+      if (e.keyCode < 91 && e.keyCode > 64){
+        key = e.shiftKey ? String.fromCharCode(e.keyCode) : String.fromCharCode(e.keyCode).toLowerCase();
+      } else {
+        key = e.nativeEvent.keyIdentifier;
+        key = JSON.parse('"' + '\\' + 'u' + key.replace('U+','') + '"');
+      }
+      AppActions.enterEditMode(key);
     }
   },
   componentDidUpdate: function() {
