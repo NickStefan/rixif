@@ -138,7 +138,7 @@ var storeMethods = {
 
   _parseFormula: function(table, row, col, formula){
     // regex out escaping characters and special characters
-    formula = formula.replace(/[\\\'\"\;\@\#\^]/g,"");
+    formula = formula.replace(/[\\\;\#\^]/g,"");
 
     // build function arguments and function variables
     formula = formula.slice(1);
@@ -194,17 +194,34 @@ var storeMethods = {
       });
     }
 
+    var error;
+
     // get supported built in formulas, ie SQUARE()
     // regex out all of the bad things (ie alert() etc)
-    usedFormulas = formula.match(/[^\(\)\s\.][a-zA-Z]+[^_0-9\(\)\s\.]/g);
-    var error;
-    if (usedFormulas){
+    // match all letters except those followed by NUMBERS_NUMBERS example is v3_3
+    var usedFormulas = formula.match(/([a-zA-Z]+)(?!\d+_\d+)|(\')|(\")/g);
+    var handled = {};
+    var quoteOpenSingle = false;
+    var quoteOpenDouble = false;
+    if (usedFormulas && usedFormulas.length){
       usedFormulas.forEach(function(fn){
-        if (_.has(formulaClass, fn.toUpperCase())){
-          var regex = new RegExp('[^\(\)\s\.][' + fn + ']+[^_0-9\(\)\s\.]','g');
-          formula = formula.replace(regex, 'this.' + fn.toUpperCase());
+        if (fn.toLowerCase() === 'true' || fn.toLowerCase() === 'false' ){
+          // pass - type Boolean
+        } else if (fn === '"') {
+          quoteOpenDouble = quoteOpenDouble ? false : true;
+        } else if (fn === "'") {
+          quoteOpenSingle = quoteOpenSingle ? false : true;
+        } else if (_.has(handled, fn)) {
+          // pass already handled
+        } else if (_.has(formulaClass, fn.toLowerCase())){
+          // have to double escape when string building regex
+          var regex = new RegExp('(' + fn + ')','g');
+          formula = formula.replace(regex, 'this.' + fn);
+          handled[fn] = fn;
+        } else if (quoteOpenDouble || quoteOpenSingle) {
+          // pass - type String
         } else {
-          error = function() { return 'ERROR: noFn';};
+          error = function() { return 'ERR: notFn';};
         }
       });
     }
@@ -246,7 +263,7 @@ var storeMethods = {
       return a.name < b.name ? -1 : 1;
     })
     .map(function(cell,key){
-      return isNaN(cell.value) || cell.value === null ? cell.value : parseInt(cell.value);
+      return isNaN(cell.value) || cell.value === null ? cell.value : parseFloat(cell.value);
     });
   },
 
@@ -290,7 +307,7 @@ var storeMethods = {
 
     function recurse(table, row, col, newValue, oldValue){
       // if newValue === a formula
-      if (newValue.length && newValue[0] === '='){
+      if (newValue && newValue.length && newValue[0] === '='){
         // use formula to calculate this cell's value
         tmpTable = reCalc.call(self, tmpTable, row, col);
         // get cell value
