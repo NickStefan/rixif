@@ -2,6 +2,7 @@ var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
   isUndefined: require('lodash/lang/isUndefined'),
+  isBoolean: require('lodash/lang/isBoolean'),
   mapValues: require('lodash/object/mapValues'),
   uniq: require('lodash/array/uniq'),
   has: require('lodash/object/has')
@@ -263,7 +264,7 @@ var storeMethods = {
       return a.name < b.name ? -1 : 1;
     })
     .map(function(cell,key){
-      return isNaN(cell.value) || cell.value === null ? cell.value : parseFloat(cell.value);
+      return isNaN(cell.value) || cell.value === null || _.isBoolean(cell.value) ? cell.value : parseFloat(cell.value);
     });
   },
 

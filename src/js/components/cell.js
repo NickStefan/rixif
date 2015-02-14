@@ -50,7 +50,12 @@ var CELL = React.createClass({
     var cellFormula = this.props.cellData.get('formula');
     var cellEditValue = cellFormula ? cellFormula : cellValue;
     var cellEdit = <input autoFocus onKeyDown={this.checkCell} className={'cell-edit'} type='text' defaultValue={cellEditValue} />;
-    var cellView = this.props.state.get('editing') ? cellEdit : cellValue;
+    var cellView;
+    if (this.props.state.get('editing')){
+      cellView = cellEdit;
+    } else {
+      cellView = cellValue !== null ? cellValue.toString() : cellValue;
+    }
 
     /* a css class toggle object based on state */
     var classes = classSet({
