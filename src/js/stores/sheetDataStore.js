@@ -141,15 +141,37 @@ var storeMethods = {
     // regex out escaping characters and special characters
     formula = formula.replace(/[\\\;\#\^]/g,"");
 
+
+    // values: /[a-zA-Z]+[0-9]+/g
+    // arrays & tables: /([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g
     // build function arguments and function variables
     formula = formula.slice(1);
-    var usedInputs = _.uniq(formula.match(/[a-zA-Z]+[0-9]+/g));
+    var usedInputs = _.uniq(formula.match(/([a-zA-Z]\d+\:[a-zA-Z]+\d+)|[a-zA-Z]+[0-9]+/g));
     var args = usedInputs.map(function(input){
-      var letter = input.match(/[a-zA-Z]+/)[0];
-      var num = input.match(/[0-9]+/)[0];
-      var regex = new RegExp('('+ letter + num + ')','g');
-      // reformat A1 to v0_0 and B1 to v0_1
-      var varName = "v" + (parseInt(num) - 1).toString() + "_" + alpha[ letter.toUpperCase() ]; 
+      // if table or array
+      if (/([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g.test(input)){
+        var letters = input.match(/[a-zA-Z]+/g);
+        var nums = input.match(/[0-9]+/g);
+        var regex = new RegExp('(' + letters[0] + nums[0] + ':' + letters[1] + nums[1] + ')');
+        var prefix = nums[0] !== nums[1] && letters[0] !== letters[1] ? 't' : 'a';
+        var varName = [
+          prefix,
+          (parseInt(nums[0]) - 1).toString(),
+          "_",
+          alpha[ letters[0].toUpperCase() ],
+          "_",
+          (parseInt(nums[1]) - 1).toString(),
+          "_",
+          alpha[ letters[1].toUpperCase() ]
+        ].join("");
+      // if value
+      } else {
+        var letter = input.match(/[a-zA-Z]+/)[0];
+        var num = input.match(/[0-9]+/)[0];
+        var regex = new RegExp('('+ letter + num + ')','g');
+        var varName = "v" + (parseInt(num) - 1).toString() + "_" + alpha[ letter.toUpperCase() ]; 
+      }
+      // reformat A1 to v0_0 and B1:B4 to a0_1_4_1 and B1:C2 to t1_1_2_2
       formula = formula.replace(regex, varName);
       return varName;
     })
@@ -168,6 +190,7 @@ var storeMethods = {
         var colDep = cellInfo[1];
         iDepOn.push({ row: rowDep, col: colDep });
       });
+      // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();

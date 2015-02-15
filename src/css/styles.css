@@ -45,11 +45,15 @@ tbody > tr > th.r-spreadsheet {
   padding: 0 7px 0 7px;
 }
 
+.r-invisible {
+  visibility: hidden;
+}
+
 .r-selected-cell {
   border: solid 2px blue;
 
   /* keeps the cells from moving odd 1px amounts when selected */
-  padding: 1px !important;
+  padding: 1px 1px 1px 4px !important;
   border-right: 1px solid blue !important;
   border-bottom: 1px solid blue !important;
   /* had to use box shadow hack to get bottom and right borders
@@ -61,15 +65,12 @@ tbody > tr > th.r-spreadsheet {
 
 }
 
-.r-invisible {
-  visibility: hidden;
-}
-
 .r-cell-view {
   width: 80px;
   height: 20px;
   padding: 2px 2px 2px 5px;
   margin: 5px;
+  white-space: nowrap;
 
   border-right: 1px solid #CCC;
   border-bottom: 1px solid #CCC;

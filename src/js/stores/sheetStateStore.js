@@ -26,15 +26,19 @@ var defaultTable = function(rows,cols) {
   cols = cols || 10;
   return Immutable.Map({
     rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
-    cellInEditMode: false
+    cellInEditMode: false,
+    lastSelected: Immutable.Map({
+      row: 1,
+      col: 1
+    }),
+    lastEditing: Immutable.Map({
+      row: 1,
+      col: 1
+    })
   });
 };
 
 var table = defaultTable();
-
-// to avoid iterating the entire table to set and unset these
-var lastSelected = {row:1, col: 1};
-var lastEditing = {row:1, col: 1};
 
 /////////////////////////////
 // Private State Methods
@@ -69,56 +73,71 @@ var stateMethods = {
   },
 
   _selected: function(table, row, col) {
+    var lastSelected = table.get('lastSelected');
+    var lastEditing = table.get('lastEditing');
     // close any editing cells
-    table = table.updateIn(['rows',lastEditing.row,'cells',lastEditing.col], function(cell) {
+    table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
       return cell.set('editing', false);
     });
     table = table.set('cellInEditMode', false);
     // select cells and unselect previously selected cell
-    table = table.updateIn(['rows',lastSelected.row,'cells',lastSelected.col], function(cell) {
+    table = table.updateIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col')], function(cell) {
       return cell.set('selected', false);
     });
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('selected', true);
     });
-    lastSelected = {row: row, col: col};
+    table = table.updateIn(['lastSelected'],function(lastSelected){
+      return lastSelected
+      .set('row',row)
+      .set('col',col);
+    });
     return table;
   },
-  _editing: function(table, row, col, lastKey) {
+  _editing: function(table, row, col, lastKey, displayAction) {
+    var lastEditing = table.get('lastEditing');
     if (row === undefined) {
-      return this._selected(table, lastEditing.row, lastEditing.col);
+      return this._selected(table, lastEditing.get('row'), lastEditing.get('col'));
     }
-    table = table.updateIn(['rows',lastEditing.row,'cells',lastEditing.col], function(cell) {
+    table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
       return cell.set('editing', false)
-      .set('lastKey',"");
+      .set('lastKey',"")
+      .set('displayAction', "");
     });
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('editing', true)
-      .set('lastKey',lastKey);
+      .set('lastKey',lastKey)
+      .set('displayAction', displayAction);
     });
     table = table.set('cellInEditMode', true);
-    lastEditing = {row: row, col: col};
+    table = table.updateIn(['lastEditing'],function(lastEditing){
+      return lastEditing
+      .set('row',row)
+      .set('col',col);
+    });
     return table;
   },
-  _enterEditMode: function(table, lastKey) {
-    return this._editing(table,lastSelected.row, lastSelected.col, lastKey);
+  _enterEditMode: function(table, lastKey, displayAction) {
+    var lastSelected = table.get('lastSelected');
+    return this._editing(table,lastSelected.get('row'), lastSelected.get('col'), lastKey, displayAction);
   },
 
   _move: function(table,move) {
+    var lastSelected = table.get('lastSelected');
     if (table.get('cellInEditMode')){
       return table;
     }
-    if (move === 'right' && lastSelected.col < table.get('rows').first().get('cells').size - 1){
-      return this._selected(table, lastSelected.row, lastSelected.col + 1);
+    if (move === 'right' && lastSelected.get('col') < table.get('rows').first().get('cells').size - 1){
+      return this._selected(table, lastSelected.get('row'), lastSelected.get('col') + 1);
 
-    } else if (move === 'left' && lastSelected.col > 0){
-      return this._selected(table, lastSelected.row, lastSelected.col - 1);
+    } else if (move === 'left' && lastSelected.get('col') > 0){
+      return this._selected(table, lastSelected.get('row'), lastSelected.get('col') - 1);
 
-    } else  if (move === 'up' && lastSelected.row > 0){
-      return this._selected(table, lastSelected.row - 1, lastSelected.col);
+    } else  if (move === 'up' && lastSelected.get('row') > 0){
+      return this._selected(table, lastSelected.get('row') - 1, lastSelected.get('col'));
 
-    } else if (move === 'down' && lastSelected.row < table.get('rows').size - 1){
-      return this._selected(table, lastSelected.row + 1, lastSelected.col)
+    } else if (move === 'down' && lastSelected.get('row') < table.get('rows').size - 1){
+      return this._selected(table, lastSelected.get('row') + 1, lastSelected.get('col'));
     } else {
       return table;
     }

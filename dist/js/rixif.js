@@ -28366,6 +28366,9 @@ var APP = React.createClass({displayName: "APP",
   componentWillMount: function(){
     AppStore.addChangeListener(this._onChange);
   },
+  componentWillUnmount: function(){
+    AppStore.removeEventListener(this._onChange);
+  },
   _onChange: function(){
     this.setState({
       table: getTableData(),
@@ -28464,6 +28467,11 @@ var CELL = React.createClass({displayName: "CELL",
       input.value += this.props.state.get('lastKey') || "";
       input.selectionStart = input.selectionEnd = input.value.length;
 
+      // ie they hit delete key to enter this edit mode
+      if (this.props.state.get('displayAction') === 'clearValue'){
+        input.value = "";
+      }
+
       // position input box with a z-index
       var top = 'top:' + (parseInt(el.offsetTop) + parseInt(el.offsetHeight) + 2) + 'px;';
       var left = 'left:' + el.offsetLeft + 'px;';
@@ -28519,6 +28527,7 @@ var CELL = React.createClass({displayName: "CELL",
       )
     )
   },
+
   shouldComponentUpdate: function(nextProps,nextState){
     if (this.props.state === nextProps.state &&
         this.props.cellData === nextProps.cellData) {
@@ -28633,6 +28642,7 @@ var getAlphaHeader = function(num){
 }
 
 var TABLE = React.createClass({displayName: "TABLE",
+
   navigate: function(e) {
   if (this.props.tableState.get('cellInEditMode')){
     return;
@@ -28653,23 +28663,46 @@ var TABLE = React.createClass({displayName: "TABLE",
       e.stopPropagation();
       e.preventDefault();
       AppActions.move('down');
-    } else if (e.key !== 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey){
-      e.stopPropagation();
+
+    // this has to live here because Delete is a keyDown event rather than keyPress
+    } else if (e.key === 'Delete'){
       e.preventDefault();
-      var key;
-      if (e.key === 'Shift' || e.key === 'CapsLock'){
-        return;
-      }
-      if (e.keyCode < 91 && e.keyCode > 64){
-        key = e.shiftKey ? String.fromCharCode(e.keyCode) : String.fromCharCode(e.keyCode).toLowerCase();
-      } else {
-        key = e.nativeEvent.keyIdentifier;
-        key = JSON.parse('"' + '\\' + 'u' + key.replace('U+','') + '"');
-      }
-      AppActions.enterEditMode(key);
+      e.stopPropagation();
+      // clear cell without entering edit mode
+      var lastSelected = this.props.tableState.get('lastSelected');
+      var oldValue = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'value'], null);
+      var newValue = "";
+      AppActions.changeCell(lastSelected.get('row'), lastSelected.get('col'), newValue, oldValue);
     }
   },
-  componentDidUpdate: function() {
+
+  edit: function(e){
+    if (this.props.tableState.get('cellInEditMode')){
+      return;
+    }
+    e.stopPropagation();
+    e.preventDefault();
+    AppActions.enterEditMode(e.key);
+  },
+
+  componentDidMount: function(){
+    window.addEventListener('keydown', this.preventBrowserBackspace );
+  },
+
+  preventBrowserBackspace: function(e){
+    // this swallows backspace keys on any non-input element.
+    // prevent browser's backspace from popping browser history stack
+    var regex = /INPUT|SELECT|TEXTAREA/i;
+    if( e.which == 8 ){ // 8 == backspace
+      if(!regex.test(e.target.tagName) || e.target.disabled || e.target.readOnly ){
+          e.preventDefault();
+          e.stopPropagation();
+          AppActions.enterEditMode("",'clearValue');
+      }
+    }
+  },
+
+  componentDidUpdate: function(){
     if (!this.props.tableState.get('cellInEditMode')){
       var x = window.scrollX;
       var y = window.scrollY;
@@ -28677,6 +28710,7 @@ var TABLE = React.createClass({displayName: "TABLE",
       window.scrollTo(x, y);
     }
   },
+
   render: function(){
     var self = this;
     var rows = this.props.table.get('rows')
@@ -28684,7 +28718,9 @@ var TABLE = React.createClass({displayName: "TABLE",
       // mutable array of immutables
       .map(function(rowData,i){
       return (
-        React.createElement(ROW, {key: i, row: rowData, state:  self.props.tableState.get('rows').get(i), index: i})
+        React.createElement(ROW, {key: i, row: rowData, 
+         state:  self.props.tableState.get('rows').get(i), 
+         index: i})
       )
     });
       
@@ -28694,11 +28730,15 @@ var TABLE = React.createClass({displayName: "TABLE",
       .concat(null)
       .slice()
       .map(function(row,colIndex){
-        return React.createElement("th", {key: colIndex, className: "r-spreadsheet"}, getAlphaHeader(colIndex))
+        return (
+          React.createElement("th", {key: colIndex, 
+           className: "r-spreadsheet"}, getAlphaHeader(colIndex))
+        )
     });
 
     return (
-      React.createElement("table", {tabIndex: -1, onKeyDown: this.navigate, className: "r-spreadsheet"}, 
+      React.createElement("table", {tabIndex: -1, onKeyPress: this.edit, 
+       onKeyDown: this.navigate, className: "r-spreadsheet"}, 
         React.createElement("thead", null, 
           React.createElement("tr", null, 
             rowsHeaders
@@ -28709,6 +28749,18 @@ var TABLE = React.createClass({displayName: "TABLE",
         )
       )
     )
+  },
+
+  componentWillUnmount: function(){
+    window.removeEventListener('keydown',this.preventBrowserBackspace);
+  },
+
+  shouldComponentUpdate: function(nextProps,nextState){
+    if (this.props.tableState === nextProps.tableState &&
+        this.props.table === nextProps.table) {
+      return false;
+    }
+    return true;
   }
 });
 
@@ -29221,15 +29273,37 @@ var storeMethods = {
     // regex out escaping characters and special characters
     formula = formula.replace(/[\\\;\#\^]/g,"");
 
+
+    // values: /[a-zA-Z]+[0-9]+/g
+    // arrays & tables: /([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g
     // build function arguments and function variables
     formula = formula.slice(1);
-    var usedInputs = _.uniq(formula.match(/[a-zA-Z]+[0-9]+/g));
+    var usedInputs = _.uniq(formula.match(/([a-zA-Z]\d+\:[a-zA-Z]+\d+)|[a-zA-Z]+[0-9]+/g));
     var args = usedInputs.map(function(input){
-      var letter = input.match(/[a-zA-Z]+/)[0];
-      var num = input.match(/[0-9]+/)[0];
-      var regex = new RegExp('('+ letter + num + ')','g');
-      // reformat A1 to v0_0 and B1 to v0_1
-      var varName = "v" + (parseInt(num) - 1).toString() + "_" + alpha[ letter.toUpperCase() ]; 
+      // if table or array
+      if (/([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g.test(input)){
+        var letters = input.match(/[a-zA-Z]+/g);
+        var nums = input.match(/[0-9]+/g);
+        var regex = new RegExp('(' + letters[0] + nums[0] + ':' + letters[1] + nums[1] + ')');
+        var prefix = nums[0] !== nums[1] && letters[0] !== letters[1] ? 't' : 'a';
+        var varName = [
+          prefix,
+          (parseInt(nums[0]) - 1).toString(),
+          "_",
+          alpha[ letters[0].toUpperCase() ],
+          "_",
+          (parseInt(nums[1]) - 1).toString(),
+          "_",
+          alpha[ letters[1].toUpperCase() ]
+        ].join("");
+      // if value
+      } else {
+        var letter = input.match(/[a-zA-Z]+/)[0];
+        var num = input.match(/[0-9]+/)[0];
+        var regex = new RegExp('('+ letter + num + ')','g');
+        var varName = "v" + (parseInt(num) - 1).toString() + "_" + alpha[ letter.toUpperCase() ]; 
+      }
+      // reformat A1 to v0_0 and B1:B4 to a0_1_4_1 and B1:C2 to t1_1_2_2
       formula = formula.replace(regex, varName);
       return varName;
     })
@@ -29248,6 +29322,7 @@ var storeMethods = {
         var colDep = cellInfo[1];
         iDepOn.push({ row: rowDep, col: colDep });
       });
+      // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();
@@ -29487,15 +29562,19 @@ var defaultTable = function(rows,cols) {
   cols = cols || 10;
   return Immutable.Map({
     rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
-    cellInEditMode: false
+    cellInEditMode: false,
+    lastSelected: Immutable.Map({
+      row: 1,
+      col: 1
+    }),
+    lastEditing: Immutable.Map({
+      row: 1,
+      col: 1
+    })
   });
 };
 
 var table = defaultTable();
-
-// to avoid iterating the entire table to set and unset these
-var lastSelected = {row:1, col: 1};
-var lastEditing = {row:1, col: 1};
 
 /////////////////////////////
 // Private State Methods
@@ -29530,56 +29609,71 @@ var stateMethods = {
   },
 
   _selected: function(table, row, col) {
+    var lastSelected = table.get('lastSelected');
+    var lastEditing = table.get('lastEditing');
     // close any editing cells
-    table = table.updateIn(['rows',lastEditing.row,'cells',lastEditing.col], function(cell) {
+    table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
       return cell.set('editing', false);
     });
     table = table.set('cellInEditMode', false);
     // select cells and unselect previously selected cell
-    table = table.updateIn(['rows',lastSelected.row,'cells',lastSelected.col], function(cell) {
+    table = table.updateIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col')], function(cell) {
       return cell.set('selected', false);
     });
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('selected', true);
     });
-    lastSelected = {row: row, col: col};
+    table = table.updateIn(['lastSelected'],function(lastSelected){
+      return lastSelected
+      .set('row',row)
+      .set('col',col);
+    });
     return table;
   },
-  _editing: function(table, row, col, lastKey) {
+  _editing: function(table, row, col, lastKey, displayAction) {
+    var lastEditing = table.get('lastEditing');
     if (row === undefined) {
-      return this._selected(table, lastEditing.row, lastEditing.col);
+      return this._selected(table, lastEditing.get('row'), lastEditing.get('col'));
     }
-    table = table.updateIn(['rows',lastEditing.row,'cells',lastEditing.col], function(cell) {
+    table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
       return cell.set('editing', false)
-      .set('lastKey',"");
+      .set('lastKey',"")
+      .set('displayAction', "");
     });
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('editing', true)
-      .set('lastKey',lastKey);
+      .set('lastKey',lastKey)
+      .set('displayAction', displayAction);
     });
     table = table.set('cellInEditMode', true);
-    lastEditing = {row: row, col: col};
+    table = table.updateIn(['lastEditing'],function(lastEditing){
+      return lastEditing
+      .set('row',row)
+      .set('col',col);
+    });
     return table;
   },
-  _enterEditMode: function(table, lastKey) {
-    return this._editing(table,lastSelected.row, lastSelected.col, lastKey);
+  _enterEditMode: function(table, lastKey, displayAction) {
+    var lastSelected = table.get('lastSelected');
+    return this._editing(table,lastSelected.get('row'), lastSelected.get('col'), lastKey, displayAction);
   },
 
   _move: function(table,move) {
+    var lastSelected = table.get('lastSelected');
     if (table.get('cellInEditMode')){
       return table;
     }
-    if (move === 'right' && lastSelected.col < table.get('rows').first().get('cells').size - 1){
-      return this._selected(table, lastSelected.row, lastSelected.col + 1);
+    if (move === 'right' && lastSelected.get('col') < table.get('rows').first().get('cells').size - 1){
+      return this._selected(table, lastSelected.get('row'), lastSelected.get('col') + 1);
 
-    } else if (move === 'left' && lastSelected.col > 0){
-      return this._selected(table, lastSelected.row, lastSelected.col - 1);
+    } else if (move === 'left' && lastSelected.get('col') > 0){
+      return this._selected(table, lastSelected.get('row'), lastSelected.get('col') - 1);
 
-    } else  if (move === 'up' && lastSelected.row > 0){
-      return this._selected(table, lastSelected.row - 1, lastSelected.col);
+    } else  if (move === 'up' && lastSelected.get('row') > 0){
+      return this._selected(table, lastSelected.get('row') - 1, lastSelected.get('col'));
 
-    } else if (move === 'down' && lastSelected.row < table.get('rows').size - 1){
-      return this._selected(table, lastSelected.row + 1, lastSelected.col)
+    } else if (move === 'down' && lastSelected.get('row') < table.get('rows').size - 1){
+      return this._selected(table, lastSelected.get('row') + 1, lastSelected.get('col'));
     } else {
       return table;
     }

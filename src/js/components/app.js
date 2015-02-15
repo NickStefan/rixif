@@ -21,6 +21,9 @@ var APP = React.createClass({
   componentWillMount: function(){
     AppStore.addChangeListener(this._onChange);
   },
+  componentWillUnmount: function(){
+    AppStore.removeEventListener(this._onChange);
+  },
   _onChange: function(){
     this.setState({
       table: getTableData(),

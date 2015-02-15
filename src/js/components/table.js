@@ -11,6 +11,7 @@ var getAlphaHeader = function(num){
 }
 
 var TABLE = React.createClass({
+
   navigate: function(e) {
   if (this.props.tableState.get('cellInEditMode')){
     return;
@@ -31,23 +32,46 @@ var TABLE = React.createClass({
       e.stopPropagation();
       e.preventDefault();
       AppActions.move('down');
-    } else if (e.key !== 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey){
-      e.stopPropagation();
+
+    // this has to live here because Delete is a keyDown event rather than keyPress
+    } else if (e.key === 'Delete'){
       e.preventDefault();
-      var key;
-      if (e.key === 'Shift' || e.key === 'CapsLock'){
-        return;
-      }
-      if (e.keyCode < 91 && e.keyCode > 64){
-        key = e.shiftKey ? String.fromCharCode(e.keyCode) : String.fromCharCode(e.keyCode).toLowerCase();
-      } else {
-        key = e.nativeEvent.keyIdentifier;
-        key = JSON.parse('"' + '\\' + 'u' + key.replace('U+','') + '"');
-      }
-      AppActions.enterEditMode(key);
+      e.stopPropagation();
+      // clear cell without entering edit mode
+      var lastSelected = this.props.tableState.get('lastSelected');
+      var oldValue = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'value'], null);
+      var newValue = "";
+      AppActions.changeCell(lastSelected.get('row'), lastSelected.get('col'), newValue, oldValue);
     }
   },
-  componentDidUpdate: function() {
+
+  edit: function(e){
+    if (this.props.tableState.get('cellInEditMode')){
+      return;
+    }
+    e.stopPropagation();
+    e.preventDefault();
+    AppActions.enterEditMode(e.key);
+  },
+
+  componentDidMount: function(){
+    window.addEventListener('keydown', this.preventBrowserBackspace );
+  },
+
+  preventBrowserBackspace: function(e){
+    // this swallows backspace keys on any non-input element.
+    // prevent browser's backspace from popping browser history stack
+    var regex = /INPUT|SELECT|TEXTAREA/i;
+    if( e.which == 8 ){ // 8 == backspace
+      if(!regex.test(e.target.tagName) || e.target.disabled || e.target.readOnly ){
+          e.preventDefault();
+          e.stopPropagation();
+          AppActions.enterEditMode("",'clearValue');
+      }
+    }
+  },
+
+  componentDidUpdate: function(){
     if (!this.props.tableState.get('cellInEditMode')){
       var x = window.scrollX;
       var y = window.scrollY;
@@ -55,6 +79,7 @@ var TABLE = React.createClass({
       window.scrollTo(x, y);
     }
   },
+
   render: function(){
     var self = this;
     var rows = this.props.table.get('rows')
@@ -62,7 +87,9 @@ var TABLE = React.createClass({
       // mutable array of immutables
       .map(function(rowData,i){
       return (
-        <ROW key={i} row={rowData} state={ self.props.tableState.get('rows').get(i) } index={i} />
+        <ROW key={i} row={rowData} 
+         state={ self.props.tableState.get('rows').get(i) }
+         index={i} />
       )
     });
       
@@ -72,11 +99,15 @@ var TABLE = React.createClass({
       .concat(null)
       .slice()
       .map(function(row,colIndex){
-        return <th key={colIndex} className={"r-spreadsheet"}>{getAlphaHeader(colIndex)}</th>
+        return (
+          <th key={colIndex} 
+           className={"r-spreadsheet"}>{getAlphaHeader(colIndex)}</th>
+        )
     });
 
     return (
-      <table tabIndex={-1} onKeyDown={this.navigate} className={"r-spreadsheet"}>
+      <table tabIndex={-1} onKeyPress={this.edit}
+       onKeyDown={this.navigate} className={"r-spreadsheet"}>
         <thead>
           <tr>
             {rowsHeaders}
@@ -87,6 +118,18 @@ var TABLE = React.createClass({
         </tbody>
       </table>
     )
+  },
+
+  componentWillUnmount: function(){
+    window.removeEventListener('keydown',this.preventBrowserBackspace);
+  },
+
+  shouldComponentUpdate: function(nextProps,nextState){
+    if (this.props.tableState === nextProps.tableState &&
+        this.props.table === nextProps.table) {
+      return false;
+    }
+    return true;
   }
 });
 

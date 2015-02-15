@@ -76,6 +76,11 @@ var CELL = React.createClass({
       input.value += this.props.state.get('lastKey') || "";
       input.selectionStart = input.selectionEnd = input.value.length;
 
+      // ie they hit delete key to enter this edit mode
+      if (this.props.state.get('displayAction') === 'clearValue'){
+        input.value = "";
+      }
+
       // position input box with a z-index
       var top = 'top:' + (parseInt(el.offsetTop) + parseInt(el.offsetHeight) + 2) + 'px;';
       var left = 'left:' + el.offsetLeft + 'px;';
@@ -131,6 +136,7 @@ var CELL = React.createClass({
       </td>
     )
   },
+
   shouldComponentUpdate: function(nextProps,nextState){
     if (this.props.state === nextProps.state &&
         this.props.cellData === nextProps.cellData) {
