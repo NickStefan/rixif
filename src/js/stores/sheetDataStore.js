@@ -191,6 +191,8 @@ var storeMethods = {
         iDepOn.push({ row: rowDep, col: colDep });
       });
       // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
+      // THEN TODO IS TO UPDATE getValues
+      // add a type property to iDepOn and depOnMe objects (shouldnt they be Maps?)
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();
