@@ -45,7 +45,7 @@ tbody > tr > th.r-spreadsheet {
   padding: 0 7px 0 7px;
 }
 
-.selected-cell {
+.r-selected-cell {
   border: solid 2px blue;
 
   /* keeps the cells from moving odd 1px amounts when selected */
@@ -61,7 +61,11 @@ tbody > tr > th.r-spreadsheet {
 
 }
 
-.cell-view {
+.r-invisible {
+  visibility: hidden;
+}
+
+.r-cell-view {
   width: 80px;
   height: 20px;
   padding: 2px 2px 2px 5px;
@@ -71,7 +75,7 @@ tbody > tr > th.r-spreadsheet {
   border-bottom: 1px solid #CCC;
 }
 
-.cell-edit {
+.r-cell-edit {
   box-sizing: border-box;
   margin: 0px;
   padding: 1px 4px 0px 2px;

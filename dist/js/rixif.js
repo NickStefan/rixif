@@ -28491,26 +28491,31 @@ var CELL = React.createClass({displayName: "CELL",
     var cellEditValue = cellFormula ? cellFormula : cellValue;
 
     var cellEdit = (
-      React.createElement("input", {autoFocus: true, onKeyDown: this.checkCell, className: 'cell-edit', 
+      React.createElement("input", {autoFocus: true, onKeyDown: this.checkCell, className: 'r-cell-edit', 
        type: "text", defaultValue: cellEditValue})
     );
-    var cellView;
+    var cellEditView;
     if (this.props.state.get('editing')){
-      cellView = cellEdit;
+      cellEditView = cellEdit;
     } else {
-      cellView = cellValue !== null ? cellValue.toString() : cellValue;
+      cellEditView = null;
     }
 
+    var cellValueView = cellValue !== null ? cellValue.toString() : cellValue;
+
     /* a css class toggle object based on state */
-    var classes = classSet({
-      'selected-cell': this.props.state.get('selected'),
-      'cell-view': true
+    var classesTD = classSet({
+      'r-selected-cell': this.props.state.get('selected'),
+      'r-cell-view': true
+    });
+    var classesSpan = classSet({
+      'r-invisible': this.props.state.get('editing')
     });
 
     return (
-      React.createElement("td", {onClick: this.handleClick, className: classes}, 
-        cellView, 
-        React.createElement("span", null)
+      React.createElement("td", {onClick: this.handleClick, className: classesTD}, 
+        cellEditView, 
+        React.createElement("span", {className: classesSpan}, cellValueView )
       )
     )
   },

@@ -28408,7 +28408,7 @@ var CELL = React.createClass({displayName: "CELL",
     e.preventDefault();
     e.stopPropagation();
     var newValue = e.target.value;
-    var formula = newValue.length && newValue[0] === '=' ? true : false;
+    var formula = newValue && newValue.length && newValue[0] === '=' ? true : false;
     var oldValue = formula ? this.props.cellData.get('formula') : this.props.cellData.get('value');
 
     if (formula && newValue !== this.props.cellData.get('formula')){
@@ -28483,8 +28483,6 @@ var CELL = React.createClass({displayName: "CELL",
       // fix edit box width
       this.checkEditBoxWidth(el.offsetWidth);
     }
-    debugger
-    console.log('update')
   },
 
   render: function(){
@@ -28493,26 +28491,31 @@ var CELL = React.createClass({displayName: "CELL",
     var cellEditValue = cellFormula ? cellFormula : cellValue;
 
     var cellEdit = (
-      React.createElement("input", {autoFocus: true, onKeyDown: this.checkCell, className: 'cell-edit', 
+      React.createElement("input", {autoFocus: true, onKeyDown: this.checkCell, className: 'r-cell-edit', 
        type: "text", defaultValue: cellEditValue})
     );
-    var cellView;
+    var cellEditView;
     if (this.props.state.get('editing')){
-      cellView = cellEdit;
+      cellEditView = cellEdit;
     } else {
-      cellView = cellValue !== null ? cellValue.toString() : cellValue;
+      cellEditView = null;
     }
 
+    var cellValueView = cellValue !== null ? cellValue.toString() : cellValue;
+
     /* a css class toggle object based on state */
-    var classes = classSet({
-      'selected-cell': this.props.state.get('selected'),
-      'cell-view': true
+    var classesTD = classSet({
+      'r-selected-cell': this.props.state.get('selected'),
+      'r-cell-view': true
+    });
+    var classesSpan = classSet({
+      'r-invisible': this.props.state.get('editing')
     });
 
     return (
-      React.createElement("td", {onClick: this.handleClick, className: classes}, 
-        cellView, 
-        React.createElement("span", null)
+      React.createElement("td", {onClick: this.handleClick, className: classesTD}, 
+        cellEditView, 
+        React.createElement("span", {className: classesSpan}, cellValueView )
       )
     )
   },
