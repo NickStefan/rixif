@@ -92,7 +92,7 @@ var storeMethods = {
 
   _changeCellUser: function(table, row, col, newValue, oldValue){
     // if a formula
-    if (newValue.length && newValue[0] === '='){
+    if (newValue && newValue.length && newValue[0] === '='){
       var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
       depOnMe.forEach(function(depObj,key){
         table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
