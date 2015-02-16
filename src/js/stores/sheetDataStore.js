@@ -140,7 +140,7 @@ var storeMethods = {
   _parseFormula: function(table, row, col, formula){
     // regex out escaping characters and special characters
     formula = formula.replace(/[\\\;\#\^]/g,"");
-
+    var error;
 
     // values: /[a-zA-Z]+[0-9]+/g
     // arrays & tables: /([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g
@@ -180,6 +180,21 @@ var storeMethods = {
     })
     .join(",");
 
+    // cell cant depend on itself
+    function checkCircleSingle(rowDep,colDep){
+      if (parseInt(rowDep) === row && parseInt(colDep) === col){
+        return true;
+      }
+      return false;
+    }
+
+    function checkCircleArrayTable(rowDep1,colDep1,rowDep2,colDep2){
+      if (col <= parseInt(colDep2) && col >= parseInt(colDep1)
+      && row <= parseInt(rowDep2) && row >= parseInt(rowDep1)){
+        return true;
+      }
+      return false;
+    }
     
     // add used inputs to iDepOn, convert v0_1 to 0,1
     if (args.length){
@@ -191,6 +206,10 @@ var storeMethods = {
         if (cellInfo && cellInfo.length <= 2){
           var rowDep = cellInfo[0].slice(1);
           var colDep = cellInfo[1];
+          if (checkCircleSingle(rowDep,colDep)){
+            error = function() { return 'ERR: circle';};
+            return;
+          }
           iDepOn.push({ type:'single', row: rowDep, col: colDep });
 
         // if array or table
@@ -201,7 +220,10 @@ var storeMethods = {
           var colDep1 = cellInfo[1];
           var rowDep2 = cellInfo[2];
           var colDep2 = cellInfo[3];
-
+          if (checkCircleArrayTable(rowDep1,colDep1,rowDep2,colDep2)){
+            error = function() { return 'ERR: circle';};
+            return;
+          }
           iDepOn.push({ 
             type: type, 
             row1: rowDep1, col1: colDep1,
@@ -237,7 +259,7 @@ var storeMethods = {
           // ie a formula with B10000 + A1000000
           return;
         }
-        table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
+        return table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
           return cell.updateIn(['depOnMe'],function(depOnMe){ 
             return depOnMe.push({ row:row, col:col });
           });
@@ -247,7 +269,7 @@ var storeMethods = {
       function addMeToArray(table, depArray){
         // vertical
         if (depArray.col1 === depArray.col2){
-          _.range(depArray.row1, depArray.row2 + 1).map(function(rowVal){
+          _.range(depArray.row1, parseInt(depArray.row2) + 1).map(function(rowVal){
             return {row: rowVal, col: depArray.col1 };
           })
           .forEach(function(depVar){
@@ -258,7 +280,7 @@ var storeMethods = {
 
         // horizontal
         } else if (depArray.row1 === depArray.row2){
-          _.range(depArray.col1, depArray.col2 + 1).map(function(colVal){
+          _.range(depArray.col1, parseInt(depArray.col2) + 1).map(function(colVal){
             return {row: depArray.row1, col: colVal};
           })
           .forEach(function(depVar){
@@ -271,15 +293,17 @@ var storeMethods = {
 
       function addMeToTable(table, depTable){
         // create vertical arrays of each col
-        _.range(depTable.col1, depTable.col2 + 1)
+        _.range(depTable.col1, parseInt(depTable.col2) + 1)
         .map(function(colVal){
-          return _.range(depTable.row1, depTable.row2 + 1)
+          return _.range(depTable.row1, parseInt(depTable.row2) + 1)
           .map(function(rowVal){
             return {row: rowVal, col: colVal };
           });
         }).forEach(function(depArr){
-          var tmpTable = addMeToArray(table, depArr);
-          if (tmpTable !== undefined) table = tmpTable;
+          depArr.forEach(function(depCell){
+            var tmpTable = addMeToSingle(table, depCell);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
         });
         return table;
       }
@@ -290,8 +314,6 @@ var storeMethods = {
         return cell.set('iDepOn', Immutable.List());
       });
     }
-
-    var error;
 
     // get supported built in formulas, ie SQUARE()
     // regex out all of the bad things (ie alert() etc)
@@ -312,7 +334,7 @@ var storeMethods = {
           // pass already handled
         } else if (_.has(formulaClass, fn.toLowerCase())){
           var regex = new RegExp('(' + fn + ')','g');
-          formula = formula.replace(regex, 'this.' + fn);
+          formula = formula.replace(regex, 'this.' + fn.toLowerCase());
           handled[fn] = fn;
         } else if (quoteOpenDouble || quoteOpenSingle) {
           // pass - type String
@@ -376,9 +398,9 @@ var storeMethods = {
       }
     }
 
-    function getSingle(depObj){
+    function getSingle(rowDep,colDep){
       return {
-        value: getValue(depObj.row, depObj.col),
+        value: getValue(rowDep, colDep),
         name: 'v' + rowDep.toString() + '_' + colDep.toString() 
       };
     }
@@ -387,35 +409,47 @@ var storeMethods = {
       var arr;
       // if vertical
       if (depArray.col1 === depArray.col2){
-        arr = _.range(depArray.row1, depArray.row2 + 1)
+        arr = _.range(depArray.row1, parseInt(depArray.row2) + 1)
         .map(function(rowVal){
-          return getSingle(rowVal, depArray.col1);
+          return getValue(rowVal, depArray.col1);
         });
       // if horizontal
       } else if (depArray.row1 === depArray.row2){
-        arr = _.range(depArray.col1, depArray.col2 + 1)
+        arr = _.range(depArray.col1, parseInt(depArray.col2) + 1)
         .map(function(colVal){
-          return getSingle(depArray.row1, colVal);
+          return getValue(depArray.row1, colVal);
         });
       }
+      var name = [
+        'a',
+        depArray.row1.toString(), '_', depArray.col1.toString(),
+        '_',
+        depArray.row2.toString(), '_', depArray.col2.toString()
+      ].join("");
       return {
         value: arr,
-        name: 'a' + row1.toString()+'_'+col1.toString()+'_'+row2.toString()+'_'+col2.toString() 
+        name: name
       };
     }
 
     function getTable(depTable){
-      // create vertical arrays of each col
-      var table = _.range(depTable.col1, depTable.col2 + 1)
-      .map(function(colVal){
-        return _.range(depTable.row1, depTable.row2 + 1)
-        .map(function(rowVal){
+      // create horizontal arrays of each row
+      var table = _.range(depTable.row1, parseInt(depTable.row2) + 1)
+      .map(function(rowVal){
+        return _.range(depTable.col1, parseInt(depTable.col2) + 1)
+        .map(function(colVal){
           return getValue(rowVal, colVal);
         });
       });
+      var name = [
+        't',
+        depTable.row1.toString(), '_', depTable.col1.toString(),
+        '_',
+        depTable.row2.toString(), '_', depTable.col2.toString()
+      ].join("");
       return {
         value: table,
-        name: 't' + row1.toString()+'_'+col1.toString()+'_'+row2.toString()+'_'+col2.toString() 
+        name: name 
       };
     }
 
@@ -524,13 +558,13 @@ var storeMethods = {
       var arr;
       // if vertical
       if (depArray.col1 === depArray.col2){
-        arr = _.range(depArray.row1, depArray.row2 + 1)
+        arr = _.range(depArray.row1, parseInt(depArray.row2) + 1)
         .map(function(rowVal){
           return isCurrent(table, rowVal, depArray.col1);
         });
       // if horizontal
       } else if (depArray.row1 === depArray.row2){
-        arr = _.range(depArray.col1, depArray.col2 + 1)
+        arr = _.range(depArray.col1, parseInt(depArray.col2) + 1)
         .map(function(colVal){
           return isCurrent(table, depArray.row1, colVal);
         });
@@ -539,9 +573,9 @@ var storeMethods = {
     }
     function isCurrentTable(table,depTable){
       // create vertical arrays of each col
-      var table = _.range(depTable.col1, depTable.col2 + 1)
+      var table = _.range(depTable.col1, parseInt(depTable.col2) + 1)
       .map(function(colVal){
-        return _.range(depTable.row1, depTable.row2 + 1)
+        return _.range(depTable.row1, parseInt(depTable.row2) + 1)
         .map(function(rowVal){
           return isCurrent(table, rowVal, colVal);
         });

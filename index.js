@@ -28415,9 +28415,11 @@ var CELL = React.createClass({displayName: "CELL",
     var oldValue = formula ? this.props.cellData.get('formula') : this.props.cellData.get('value');
 
     if (formula && newValue !== this.props.cellData.get('formula')){
+      console.time('formula');
       AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
 
     } else if (!formula && newValue !== this.props.cellData.value){
+      console.time('value');
       AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
       
     } else {
@@ -28509,7 +28511,7 @@ var CELL = React.createClass({displayName: "CELL",
       cellEditView = null;
     }
 
-    var cellValueView = cellValue !== null ? cellValue.toString() : cellValue;
+    var cellValueView = cellValue !== null && cellValue !== undefined ? cellValue.toString() : cellValue;
 
     /* a css class toggle object based on state */
     var classesTD = classSet({
@@ -28519,7 +28521,8 @@ var CELL = React.createClass({displayName: "CELL",
     var classesSpan = classSet({
       'r-invisible': this.props.state.get('editing')
     });
-
+    console.timeEnd('value');
+    console.timeEnd('formula')
     return (
       React.createElement("td", {onClick: this.handleClick, className: classesTD}, 
         cellEditView, 
@@ -28670,8 +28673,10 @@ var TABLE = React.createClass({displayName: "TABLE",
       e.stopPropagation();
       // clear cell without entering edit mode
       var lastSelected = this.props.tableState.get('lastSelected');
-      var oldValue = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'value'], null);
+      var value = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'value'], null);
+      var formula = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'formula'], null);
       var newValue = "";
+      var oldValue = formula ? formula : value;
       AppActions.changeCell(lastSelected.get('row'), lastSelected.get('col'), newValue, oldValue);
     }
   },
@@ -29117,7 +29122,7 @@ var formulas = {
       if (!notExact && row[0] === value){
         found = row[col - 1];
         return false;
-      } else if (row[0] <= value) {
+      } else if (notExact && row[0] <= value) {
         found = row[col - 1];
         return false;
       }
@@ -29137,7 +29142,9 @@ var _ = {
   isBoolean: require('lodash/lang/isBoolean'),
   mapValues: require('lodash/object/mapValues'),
   uniq: require('lodash/array/uniq'),
-  has: require('lodash/object/has')
+  has: require('lodash/object/has'),
+  flatten: require('lodash/array/flatten'),
+  every: require('lodash/collection/every')
 };
 var colHelpers = require('../stores/col-num-helpers');
 var alpha = colHelpers.alpha;
@@ -29212,13 +29219,11 @@ var storeMethods = {
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     var tmpTable = this._changeCellUser.apply(this,arguments);
-    //return tmpTable;
     return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
   },
 
   _unchangeCell: function(table, row, col, newValue, oldValue){
     var tmpTable = this._changeCellUser(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
-    //return tmpTable;
     return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
   },
 
@@ -29272,7 +29277,7 @@ var storeMethods = {
   _parseFormula: function(table, row, col, formula){
     // regex out escaping characters and special characters
     formula = formula.replace(/[\\\;\#\^]/g,"");
-
+    var error;
 
     // values: /[a-zA-Z]+[0-9]+/g
     // arrays & tables: /([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g
@@ -29312,17 +29317,57 @@ var storeMethods = {
     })
     .join(",");
 
+    // cell cant depend on itself
+    function checkCircleSingle(rowDep,colDep){
+      if (parseInt(rowDep) === row && parseInt(colDep) === col){
+        return true;
+      }
+      return false;
+    }
+
+    function checkCircleArrayTable(rowDep1,colDep1,rowDep2,colDep2){
+      if (col <= parseInt(colDep2) && col >= parseInt(colDep1)
+      && row <= parseInt(rowDep2) && row >= parseInt(rowDep1)){
+        return true;
+      }
+      return false;
+    }
     
     // add used inputs to iDepOn, convert v0_1 to 0,1
     if (args.length){
       var iDepOn = [];
       args.split(",").forEach(function(cellDep){
         var cellInfo = cellDep.split("_");
-        var rowDep = cellInfo[0].slice(1);
-        var colDep = cellInfo[1];
-        iDepOn.push({ row: rowDep, col: colDep });
+
+        // if single cell
+        if (cellInfo && cellInfo.length <= 2){
+          var rowDep = cellInfo[0].slice(1);
+          var colDep = cellInfo[1];
+          if (checkCircleSingle(rowDep,colDep)){
+            error = function() { return 'ERR: circle';};
+            return;
+          }
+          iDepOn.push({ type:'single', row: rowDep, col: colDep });
+
+        // if array or table
+        } else if (cellInfo && cellInfo.length > 2 &&
+         (cellInfo[0][0] === 'a' || cellInfo[0][0] === 't') ){
+          var type = cellInfo[0][0] === 'a' ? 'array' : 'table';
+          var rowDep1 = cellInfo[0].slice(1);
+          var colDep1 = cellInfo[1];
+          var rowDep2 = cellInfo[2];
+          var colDep2 = cellInfo[3];
+          if (checkCircleArrayTable(rowDep1,colDep1,rowDep2,colDep2)){
+            error = function() { return 'ERR: circle';};
+            return;
+          }
+          iDepOn.push({ 
+            type: type, 
+            row1: rowDep1, col1: colDep1,
+            row2: rowDep2, col2: colDep2
+          });
+        }
       });
-      // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();
@@ -29330,18 +29375,75 @@ var storeMethods = {
       });
 
       // add me to the depOnMe for every cell in my iDepOn
-      iDepOn.forEach(function(depCell){
+      iDepOn.forEach(function(depVar){
+        if (depVar.type === 'single'){
+          var tmpTable = addMeToSingle(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+
+        } else if (depVar.type === 'array') {
+          var tmpTable = addMeToArray(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+
+        } else if (depVar.type === 'table') {
+          var tmpTable = addMeToTable(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+        }
+      });
+
+      function addMeToSingle(table,depCell){
         if (!table.hasIn(['rows',depCell.row,'cells',depCell.col])){
-        //abort the loop the row or col doesnt exist
-        // ie a formula with B10000 + A1000000
-        return false;
-      }
-        table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
+          //abort: the row or col doesnt exist
+          // ie a formula with B10000 + A1000000
+          return;
+        }
+        return table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
           return cell.updateIn(['depOnMe'],function(depOnMe){ 
             return depOnMe.push({ row:row, col:col });
           });
+        });  
+      }
+
+      function addMeToArray(table, depArray){
+        // vertical
+        if (depArray.col1 === depArray.col2){
+          _.range(depArray.row1, parseInt(depArray.row2) + 1).map(function(rowVal){
+            return {row: rowVal, col: depArray.col1 };
+          })
+          .forEach(function(depVar){
+            var tmpTable = addMeToSingle(table, depVar);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
+          return table;
+
+        // horizontal
+        } else if (depArray.row1 === depArray.row2){
+          _.range(depArray.col1, parseInt(depArray.col2) + 1).map(function(colVal){
+            return {row: depArray.row1, col: colVal};
+          })
+          .forEach(function(depVar){
+            var tmpTable = addMeToSingle(table, depVar);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
+          return table;
+        }
+      }
+
+      function addMeToTable(table, depTable){
+        // create vertical arrays of each col
+        _.range(depTable.col1, parseInt(depTable.col2) + 1)
+        .map(function(colVal){
+          return _.range(depTable.row1, parseInt(depTable.row2) + 1)
+          .map(function(rowVal){
+            return {row: rowVal, col: colVal };
+          });
+        }).forEach(function(depArr){
+          depArr.forEach(function(depCell){
+            var tmpTable = addMeToSingle(table, depCell);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
         });
-      });
+        return table;
+      }
 
     // if no arguments, set iDepOn to empty List
     } else {
@@ -29349,8 +29451,6 @@ var storeMethods = {
         return cell.set('iDepOn', Immutable.List());
       });
     }
-
-    var error;
 
     // get supported built in formulas, ie SQUARE()
     // regex out all of the bad things (ie alert() etc)
@@ -29370,9 +29470,8 @@ var storeMethods = {
         } else if (_.has(handled, fn)) {
           // pass already handled
         } else if (_.has(formulaClass, fn.toLowerCase())){
-          // have to double escape when string building regex
           var regex = new RegExp('(' + fn + ')','g');
-          formula = formula.replace(regex, 'this.' + fn);
+          formula = formula.replace(regex, 'this.' + fn.toLowerCase());
           handled[fn] = fn;
         } else if (quoteOpenDouble || quoteOpenSingle) {
           // pass - type String
@@ -29407,20 +29506,90 @@ var storeMethods = {
     // build arg array of values from iDepOn
     // return arg array sorted by row and col
     return table.getIn(['rows',row,'cells',col,'iDepOn'], Immutable.List())
-    .map(function(cell,key){
-      var rowDep = cell.row;
-      var colDep = cell.col;
-      return {
-        value: table.getIn(['rows',rowDep,'cells',colDep,'value'], null),
-        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
+    .map(function(depObj,key){
+      if (depObj.type === 'single'){
+        return getSingle(depObj);
+
+      } else if (depObj.type === 'array'){
+        return getArray(depObj);
+
+      } else if (depObj.type === 'table'){
+        return getTable(depObj);
       }
     })
     .sort(function(a,b){
       return a.name < b.name ? -1 : 1;
     })
-    .map(function(cell,key){
-      return isNaN(cell.value) || cell.value === null || _.isBoolean(cell.value) ? cell.value : parseFloat(cell.value);
+    .map(function(depVar,key){
+      return depVar.value;
     });
+
+
+    function getValue(rowDep,colDep){
+      var value = table.getIn(['rows',rowDep,'cells',colDep,'value'], null);
+      
+      if (isNaN(value) || value === null || _.isBoolean(value)){
+        return value;
+      } else {
+        return parseFloat(value);
+      }
+    }
+
+    function getSingle(rowDep,colDep){
+      return {
+        value: getValue(rowDep, colDep),
+        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
+      };
+    }
+
+    function getArray(depArray){
+      var arr;
+      // if vertical
+      if (depArray.col1 === depArray.col2){
+        arr = _.range(depArray.row1, parseInt(depArray.row2) + 1)
+        .map(function(rowVal){
+          return getValue(rowVal, depArray.col1);
+        });
+      // if horizontal
+      } else if (depArray.row1 === depArray.row2){
+        arr = _.range(depArray.col1, parseInt(depArray.col2) + 1)
+        .map(function(colVal){
+          return getValue(depArray.row1, colVal);
+        });
+      }
+      var name = [
+        'a',
+        depArray.row1.toString(), '_', depArray.col1.toString(),
+        '_',
+        depArray.row2.toString(), '_', depArray.col2.toString()
+      ].join("");
+      return {
+        value: arr,
+        name: name
+      };
+    }
+
+    function getTable(depTable){
+      // create horizontal arrays of each row
+      var table = _.range(depTable.row1, parseInt(depTable.row2) + 1)
+      .map(function(rowVal){
+        return _.range(depTable.col1, parseInt(depTable.col2) + 1)
+        .map(function(colVal){
+          return getValue(rowVal, colVal);
+        });
+      });
+      var name = [
+        't',
+        depTable.row1.toString(), '_', depTable.col1.toString(),
+        '_',
+        depTable.row2.toString(), '_', depTable.col2.toString()
+      ].join("");
+      return {
+        value: table,
+        name: name 
+      };
+    }
+
   },
 
   _eval: function(table, row, col, args){
@@ -29482,29 +29651,73 @@ var storeMethods = {
         while (depOnMe.size) {
 
           var depCell = depOnMe.findEntry(function(depCell,key){
-            // depCells ALL iDepOns 'needsReCalc' === false
-            return tmpTable.getIn(['rows',depCell.row,'cells',depCell.col,'iDepOn']).every(function(iDepCell,key){
-              return tmpTable.getIn(['rows',iDepCell.row,'cells',iDepCell.col,'needsReCalc']) === false;
+            // do all of the cells in this one's iDepOn have 'needsReCalc' === false?
+            return tmpTable.getIn(['rows',depCell.row,'cells',depCell.col,'iDepOn'])
+            .every(function(iDepObj,key){
+              // does this cell not need a reCalc?
+              if (iDepObj.type === 'single'){
+                return isCurrent(tmpTable, iDepObj.row, iDepObj.col);
+              // do all of the cells in this array not need a reCalc?
+              } else if (iDepObj.type === 'array'){
+                return isCurrentArray(tmpTable, iDepObj);
+              // do all of the cells in this table not need a reCalc?
+              } else if (iDepObj.type === 'table'){
+                return isCurrentArray(tmpTable, iDepObj);
+              }
             });
           });
 
+          // reCalc cell if all of its iDepOn tree is up to date
           if (depCell && depCell.length){
             depOnMe = depOnMe.splice(depCell[0],1);
             tmpTable = reCalc.call(self, tmpTable, depCell[1].row, depCell[1].col);
+          // dont recalculate cell if it still has unresolved dependencies
           } else {
-            console.log("skipping ", depOnMe.first().row, depOnMe.first().col);
+            // skip reCalc, will be arrived at later in the dependency tree
             depOnMe = depOnMe.pop();
           }
         }
 
+        // recurse through the dependency tree
         updatedDepOnMe.forEach(function(depCell){
           var row = depCell.row;
           var col = depCell.col;
           var val = tmpTable.getIn(['rows', row, 'cells', col, 'value'],null);
           recurse.call(self, tmpTable, row, col, val);
         });
-
       }
+    }
+
+    function isCurrent(table,depRow,depCol){
+      return table.getIn(['rows',depRow,'cells',depCol,'needsReCalc']) === false;
+    }
+    function isCurrentArray(table,depArray){
+      var arr;
+      // if vertical
+      if (depArray.col1 === depArray.col2){
+        arr = _.range(depArray.row1, parseInt(depArray.row2) + 1)
+        .map(function(rowVal){
+          return isCurrent(table, rowVal, depArray.col1);
+        });
+      // if horizontal
+      } else if (depArray.row1 === depArray.row2){
+        arr = _.range(depArray.col1, parseInt(depArray.col2) + 1)
+        .map(function(colVal){
+          return isCurrent(table, depArray.row1, colVal);
+        });
+      }
+      return _.every(arr, Boolean);
+    }
+    function isCurrentTable(table,depTable){
+      // create vertical arrays of each col
+      var table = _.range(depTable.col1, parseInt(depTable.col2) + 1)
+      .map(function(colVal){
+        return _.range(depTable.row1, parseInt(depTable.row2) + 1)
+        .map(function(rowVal){
+          return isCurrent(table, rowVal, colVal);
+        });
+      });
+      return _.every( _.flatten(table), Boolean);
     }
   }
 
@@ -29533,7 +29746,7 @@ module.exports = {
   table: table
 };
 
-},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/uniq":7,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
+},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),

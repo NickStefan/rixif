@@ -24,9 +24,11 @@ var CELL = React.createClass({
     var oldValue = formula ? this.props.cellData.get('formula') : this.props.cellData.get('value');
 
     if (formula && newValue !== this.props.cellData.get('formula')){
+      console.time('formula');
       AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
 
     } else if (!formula && newValue !== this.props.cellData.value){
+      console.time('value');
       AppActions.changeCell(this.props.rowIndex, this.props.colIndex, newValue, oldValue);
       
     } else {
@@ -118,7 +120,7 @@ var CELL = React.createClass({
       cellEditView = null;
     }
 
-    var cellValueView = cellValue !== null ? cellValue.toString() : cellValue;
+    var cellValueView = cellValue !== null && cellValue !== undefined ? cellValue.toString() : cellValue;
 
     /* a css class toggle object based on state */
     var classesTD = classSet({
@@ -128,7 +130,8 @@ var CELL = React.createClass({
     var classesSpan = classSet({
       'r-invisible': this.props.state.get('editing')
     });
-
+    console.timeEnd('value');
+    console.timeEnd('formula')
     return (
       <td onClick={this.handleClick} className={classesTD}>
         {cellEditView}

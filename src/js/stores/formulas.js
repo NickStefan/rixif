@@ -140,7 +140,7 @@ var formulas = {
       if (!notExact && row[0] === value){
         found = row[col - 1];
         return false;
-      } else if (row[0] <= value) {
+      } else if (notExact && row[0] <= value) {
         found = row[col - 1];
         return false;
       }

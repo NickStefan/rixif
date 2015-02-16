@@ -39,8 +39,10 @@ var TABLE = React.createClass({
       e.stopPropagation();
       // clear cell without entering edit mode
       var lastSelected = this.props.tableState.get('lastSelected');
-      var oldValue = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'value'], null);
+      var value = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'value'], null);
+      var formula = this.props.table.getIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col'),'formula'], null);
       var newValue = "";
+      var oldValue = formula ? formula : value;
       AppActions.changeCell(lastSelected.get('row'), lastSelected.get('col'), newValue, oldValue);
     }
   },
