@@ -186,13 +186,31 @@ var storeMethods = {
       var iDepOn = [];
       args.split(",").forEach(function(cellDep){
         var cellInfo = cellDep.split("_");
-        var rowDep = cellInfo[0].slice(1);
-        var colDep = cellInfo[1];
-        iDepOn.push({ row: rowDep, col: colDep });
+
+        // if single cell
+        if (cellInfo && cellInfo.length <= 2){
+          var rowDep = cellInfo[0].slice(1);
+          var colDep = cellInfo[1];
+          iDepOn.push({ type:'single', row: rowDep, col: colDep });
+
+        // if array or table
+        } else if (cellInfo && cellInfo.length > 2 &&
+         (cellInfo[0][0] === 'a' || cellInfo[0][0] === 't') ){
+          var type = cellInfo[0][0] === 'a' ? 'array' : 'table';
+          var rowDep1 = cellInfo[0].slice(1);
+          var colDep1 = cellInfo[1];
+          var rowDep2 = cellInfo[2];
+          var colDep2 = cellInfo[3];
+
+          iDepOn.push({ 
+            type: type, 
+            row1: rowDep1, col1: colDep1
+            row2: rowDep2, col2: colDep2
+          });
+        }
       });
-      // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
-      // THEN TODO IS TO UPDATE getValues
-      // add a type property to iDepOn and depOnMe objects (shouldnt they be Maps?)
+
+      // THEN TODO IS TO UPDATE _getValues, _eval, _updateFormulas, _changeCellUser
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();
@@ -200,18 +218,73 @@ var storeMethods = {
       });
 
       // add me to the depOnMe for every cell in my iDepOn
-      iDepOn.forEach(function(depCell){
+      iDepOn.forEach(function(depVar){
+        if (depVar.type === 'single'){
+          var tmpTable = addMeToSingle(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+
+        } else if (depVar.type === 'array') {
+          var tmpTable = addMeToArray(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+
+        } else if (depVar.type === 'table') {
+          var tmpTable = addMeToTable(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+        }
+      });
+
+      function addMeToSingle(table,depCell){
         if (!table.hasIn(['rows',depCell.row,'cells',depCell.col])){
-        //abort the loop the row or col doesnt exist
-        // ie a formula with B10000 + A1000000
-        return false;
-      }
+          //abort: the row or col doesnt exist
+          // ie a formula with B10000 + A1000000
+          return;
+        }
         table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
           return cell.updateIn(['depOnMe'],function(depOnMe){ 
             return depOnMe.push({ row:row, col:col });
           });
+        });  
+      }
+
+      function addMeToArray(table, depArray){
+        // vertical
+        if (depArray.col1 === depArray.col2){
+          _.range(depArray.row1, depArray.row2 + 1).map(function(rowVal){
+            return {row: rowVal, col: depArray.col1 };
+          })
+          .forEach(function(depVar){
+            var tmpTable = addMeToSingle(table, depVar);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
+          return table;
+
+        // horizontal
+        } else if (depArray.row1 === depArray.row2){
+          _.range(depArray.col1, depArray.col2 + 1).map(function(colVal){
+            return {row: depArray.row1, col: colVal};
+          })
+          .forEach(function(depVar){
+            var tmpTable = addMeToSingle(table, depVar);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
+          return table;
+        }
+      }
+
+      function addMeToTable(table, depTable){
+        // create vertical arrays of each col
+        _.range(depTable.col1, depTable.col2 + 1)
+        .map(function(colVal){
+          return _.range(depTable.row1, depTable.row2 + 1)
+          .map(function(rowVal){
+            return {row: rowVal, col: colVal };
+          });
+        }).forEach(function(depArr){
+          var tmpTable = addMeToArray(table, depArr);
+          if (tmpTable !== undefined) table = tmpTable;
         });
-      });
+        return table;
+      }
 
     // if no arguments, set iDepOn to empty List
     } else {
