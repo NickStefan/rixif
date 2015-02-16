@@ -29137,7 +29137,9 @@ var _ = {
   isBoolean: require('lodash/lang/isBoolean'),
   mapValues: require('lodash/object/mapValues'),
   uniq: require('lodash/array/uniq'),
-  has: require('lodash/object/has')
+  has: require('lodash/object/has'),
+  flatten: require('lodash/array/flatten'),
+  every: require('lodash/collection/every')
 };
 var colHelpers = require('../stores/col-num-helpers');
 var alpha = colHelpers.alpha;
@@ -29212,13 +29214,11 @@ var storeMethods = {
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     var tmpTable = this._changeCellUser.apply(this,arguments);
-    //return tmpTable;
     return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[3],arguments[4]);
   },
 
   _unchangeCell: function(table, row, col, newValue, oldValue){
     var tmpTable = this._changeCellUser(arguments[0],arguments[1],arguments[2],arguments[4],arguments[3]);
-    //return tmpTable;
     return this._updateFormulas(tmpTable, arguments[1],arguments[2],arguments[4],arguments[3]);
   },
 
@@ -29318,11 +29318,29 @@ var storeMethods = {
       var iDepOn = [];
       args.split(",").forEach(function(cellDep){
         var cellInfo = cellDep.split("_");
-        var rowDep = cellInfo[0].slice(1);
-        var colDep = cellInfo[1];
-        iDepOn.push({ row: rowDep, col: colDep });
+
+        // if single cell
+        if (cellInfo && cellInfo.length <= 2){
+          var rowDep = cellInfo[0].slice(1);
+          var colDep = cellInfo[1];
+          iDepOn.push({ type:'single', row: rowDep, col: colDep });
+
+        // if array or table
+        } else if (cellInfo && cellInfo.length > 2 &&
+         (cellInfo[0][0] === 'a' || cellInfo[0][0] === 't') ){
+          var type = cellInfo[0][0] === 'a' ? 'array' : 'table';
+          var rowDep1 = cellInfo[0].slice(1);
+          var colDep1 = cellInfo[1];
+          var rowDep2 = cellInfo[2];
+          var colDep2 = cellInfo[3];
+
+          iDepOn.push({ 
+            type: type, 
+            row1: rowDep1, col1: colDep1,
+            row2: rowDep2, col2: colDep2
+          });
+        }
       });
-      // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();
@@ -29330,18 +29348,73 @@ var storeMethods = {
       });
 
       // add me to the depOnMe for every cell in my iDepOn
-      iDepOn.forEach(function(depCell){
+      iDepOn.forEach(function(depVar){
+        if (depVar.type === 'single'){
+          var tmpTable = addMeToSingle(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+
+        } else if (depVar.type === 'array') {
+          var tmpTable = addMeToArray(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+
+        } else if (depVar.type === 'table') {
+          var tmpTable = addMeToTable(table, depVar);
+          if (tmpTable !== undefined) table = tmpTable;
+        }
+      });
+
+      function addMeToSingle(table,depCell){
         if (!table.hasIn(['rows',depCell.row,'cells',depCell.col])){
-        //abort the loop the row or col doesnt exist
-        // ie a formula with B10000 + A1000000
-        return false;
-      }
+          //abort: the row or col doesnt exist
+          // ie a formula with B10000 + A1000000
+          return;
+        }
         table = table.updateIn(['rows',depCell.row,'cells',depCell.col],function(cell){
           return cell.updateIn(['depOnMe'],function(depOnMe){ 
             return depOnMe.push({ row:row, col:col });
           });
+        });  
+      }
+
+      function addMeToArray(table, depArray){
+        // vertical
+        if (depArray.col1 === depArray.col2){
+          _.range(depArray.row1, depArray.row2 + 1).map(function(rowVal){
+            return {row: rowVal, col: depArray.col1 };
+          })
+          .forEach(function(depVar){
+            var tmpTable = addMeToSingle(table, depVar);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
+          return table;
+
+        // horizontal
+        } else if (depArray.row1 === depArray.row2){
+          _.range(depArray.col1, depArray.col2 + 1).map(function(colVal){
+            return {row: depArray.row1, col: colVal};
+          })
+          .forEach(function(depVar){
+            var tmpTable = addMeToSingle(table, depVar);
+            if (tmpTable !== undefined) table = tmpTable;
+          });
+          return table;
+        }
+      }
+
+      function addMeToTable(table, depTable){
+        // create vertical arrays of each col
+        _.range(depTable.col1, depTable.col2 + 1)
+        .map(function(colVal){
+          return _.range(depTable.row1, depTable.row2 + 1)
+          .map(function(rowVal){
+            return {row: rowVal, col: colVal };
+          });
+        }).forEach(function(depArr){
+          var tmpTable = addMeToArray(table, depArr);
+          if (tmpTable !== undefined) table = tmpTable;
         });
-      });
+        return table;
+      }
 
     // if no arguments, set iDepOn to empty List
     } else {
@@ -29370,7 +29443,6 @@ var storeMethods = {
         } else if (_.has(handled, fn)) {
           // pass already handled
         } else if (_.has(formulaClass, fn.toLowerCase())){
-          // have to double escape when string building regex
           var regex = new RegExp('(' + fn + ')','g');
           formula = formula.replace(regex, 'this.' + fn);
           handled[fn] = fn;
@@ -29407,20 +29479,78 @@ var storeMethods = {
     // build arg array of values from iDepOn
     // return arg array sorted by row and col
     return table.getIn(['rows',row,'cells',col,'iDepOn'], Immutable.List())
-    .map(function(cell,key){
-      var rowDep = cell.row;
-      var colDep = cell.col;
-      return {
-        value: table.getIn(['rows',rowDep,'cells',colDep,'value'], null),
-        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
+    .map(function(depObj,key){
+      if (depObj.type === 'single'){
+        return getSingle(depObj);
+
+      } else if (depObj.type === 'array'){
+        return getArray(depObj);
+
+      } else if (depObj.type === 'table'){
+        return getTable(depObj);
       }
     })
     .sort(function(a,b){
       return a.name < b.name ? -1 : 1;
     })
-    .map(function(cell,key){
-      return isNaN(cell.value) || cell.value === null || _.isBoolean(cell.value) ? cell.value : parseFloat(cell.value);
+    .map(function(depVar,key){
+      return depVar.value;
     });
+
+
+    function getValue(rowDep,colDep){
+      var value = table.getIn(['rows',rowDep,'cells',colDep,'value'], null);
+      
+      if (isNaN(value) || value === null || _.isBoolean(value)){
+        return value;
+      } else {
+        return parseFloat(value);
+      }
+    }
+
+    function getSingle(depObj){
+      return {
+        value: getValue(depObj.row, depObj.col),
+        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
+      };
+    }
+
+    function getArray(depArray){
+      var arr;
+      // if vertical
+      if (depArray.col1 === depArray.col2){
+        arr = _.range(depArray.row1, depArray.row2 + 1)
+        .map(function(rowVal){
+          return getSingle(rowVal, depArray.col1);
+        });
+      // if horizontal
+      } else if (depArray.row1 === depArray.row2){
+        arr = _.range(depArray.col1, depArray.col2 + 1)
+        .map(function(colVal){
+          return getSingle(depArray.row1, colVal);
+        });
+      }
+      return {
+        value: arr,
+        name: 'a' + row1.toString()+'_'+col1.toString()+'_'+row2.toString()+'_'+col2.toString() 
+      };
+    }
+
+    function getTable(depTable){
+      // create vertical arrays of each col
+      var table = _.range(depTable.col1, depTable.col2 + 1)
+      .map(function(colVal){
+        return _.range(depTable.row1, depTable.row2 + 1)
+        .map(function(rowVal){
+          return getValue(rowVal, colVal);
+        });
+      });
+      return {
+        value: table,
+        name: 't' + row1.toString()+'_'+col1.toString()+'_'+row2.toString()+'_'+col2.toString() 
+      };
+    }
+
   },
 
   _eval: function(table, row, col, args){
@@ -29482,29 +29612,73 @@ var storeMethods = {
         while (depOnMe.size) {
 
           var depCell = depOnMe.findEntry(function(depCell,key){
-            // depCells ALL iDepOns 'needsReCalc' === false
-            return tmpTable.getIn(['rows',depCell.row,'cells',depCell.col,'iDepOn']).every(function(iDepCell,key){
-              return tmpTable.getIn(['rows',iDepCell.row,'cells',iDepCell.col,'needsReCalc']) === false;
+            // do all of the cells in this one's iDepOn have 'needsReCalc' === false?
+            return tmpTable.getIn(['rows',depCell.row,'cells',depCell.col,'iDepOn'])
+            .every(function(iDepObj,key){
+              // does this cell not need a reCalc?
+              if (iDepObj.type === 'single'){
+                return isCurrent(tmpTable, iDepObj.row, iDepObj.col);
+              // do all of the cells in this array not need a reCalc?
+              } else if (iDepObj.type === 'array'){
+                return isCurrentArray(tmpTable, iDepObj);
+              // do all of the cells in this table not need a reCalc?
+              } else if (iDepObj.type === 'table'){
+                return isCurrentArray(tmpTable, iDepObj);
+              }
             });
           });
 
+          // reCalc cell if all of its iDepOn tree is up to date
           if (depCell && depCell.length){
             depOnMe = depOnMe.splice(depCell[0],1);
             tmpTable = reCalc.call(self, tmpTable, depCell[1].row, depCell[1].col);
+          // dont recalculate cell if it still has unresolved dependencies
           } else {
-            console.log("skipping ", depOnMe.first().row, depOnMe.first().col);
+            // skip reCalc, will be arrived at later in the dependency tree
             depOnMe = depOnMe.pop();
           }
         }
 
+        // recurse through the dependency tree
         updatedDepOnMe.forEach(function(depCell){
           var row = depCell.row;
           var col = depCell.col;
           var val = tmpTable.getIn(['rows', row, 'cells', col, 'value'],null);
           recurse.call(self, tmpTable, row, col, val);
         });
-
       }
+    }
+
+    function isCurrent(table,depRow,depCol){
+      return table.getIn(['rows',depRow,'cells',depCol,'needsReCalc']) === false;
+    }
+    function isCurrentArray(table,depArray){
+      var arr;
+      // if vertical
+      if (depArray.col1 === depArray.col2){
+        arr = _.range(depArray.row1, depArray.row2 + 1)
+        .map(function(rowVal){
+          return isCurrent(table, rowVal, depArray.col1);
+        });
+      // if horizontal
+      } else if (depArray.row1 === depArray.row2){
+        arr = _.range(depArray.col1, depArray.col2 + 1)
+        .map(function(colVal){
+          return isCurrent(table, depArray.row1, colVal);
+        });
+      }
+      return _.every(arr, Boolean);
+    }
+    function isCurrentTable(table,depTable){
+      // create vertical arrays of each col
+      var table = _.range(depTable.col1, depTable.col2 + 1)
+      .map(function(colVal){
+        return _.range(depTable.row1, depTable.row2 + 1)
+        .map(function(rowVal){
+          return isCurrent(table, rowVal, colVal);
+        });
+      });
+      return _.every( _.flatten(table), Boolean);
     }
   }
 
@@ -29533,7 +29707,7 @@ module.exports = {
   table: table
 };
 
-},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/uniq":7,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
+},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),

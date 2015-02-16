@@ -29283,11 +29283,19 @@ var storeMethods = {
       // if table or array
       if (/([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g.test(input)){
         var letters = input.match(/[a-zA-Z]+/g);
-        var numbers = input.match(/[0-9]+/g);
-        var prefix = numbers[0] !== numbers[1] && letters[0] !== letters[1] ? 't' : 'a';
-        var varName = numbers.reduce(function(str,row){
-
-        },prefix)
+        var nums = input.match(/[0-9]+/g);
+        var regex = new RegExp('(' + letters[0] + nums[0] + ':' + letters[1] + nums[1] + ')');
+        var prefix = nums[0] !== nums[1] && letters[0] !== letters[1] ? 't' : 'a';
+        var varName = [
+          prefix,
+          (parseInt(nums[0]) - 1).toString(),
+          "_",
+          alpha[ letters[0].toUpperCase() ],
+          "_",
+          (parseInt(nums[1]) - 1).toString(),
+          "_",
+          alpha[ letters[1].toUpperCase() ]
+        ].join("");
       // if value
       } else {
         var letter = input.match(/[a-zA-Z]+/)[0];
@@ -29314,6 +29322,7 @@ var storeMethods = {
         var colDep = cellInfo[1];
         iDepOn.push({ row: rowDep, col: colDep });
       });
+      // TODO ADD NEW a3_0_7_0 and t3_0_7_1 TO iDepOn and depOnMe
 
       table = table.updateIn(['rows',row,'cells',col], function(cell){
         var newDeps = Immutable.List();
