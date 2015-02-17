@@ -4,21 +4,41 @@ var AppActions = require('../actions/app-actions');
 
 var RIBBONBAR = React.createClass({
   addCol: function(e){
-    AppActions.addCol();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.addCol');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.addCol(inputVal);
   },
   rmCol: function(e){
-    AppActions.rmCol();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.rmCol');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.rmCol(inputVal);
   },
   addRow: function(e){
-    AppActions.addRow();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.addRow');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.addRow(inputVal);
   },
   rmRow: function(e){
-    AppActions.rmRow();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.rmRow');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.rmRow(inputVal);
   },
   undo: function(e){
+    e.stopPropagation();
+    e.preventDefault();
     AppActions.undo();
   },
   redo: function(e){
+    e.stopPropagation();
+    e.preventDefault();
     AppActions.redo();
   },
 
@@ -37,9 +57,13 @@ var RIBBONBAR = React.createClass({
     return (
       <div>
         <button onClick={this.addCol}> new col </button>
+        <input className={'addCol'} type='text' placeholder='col index'/>
         <button onClick={this.rmCol}> remove col </button>
+        <input className={'rmCol'} type='text' placeholder='col index'/>
         <button onClick={this.addRow}> new row </button>
+        <input className={'addRow'} type='text' placeholder='row index'/>
         <button onClick={this.rmRow}> remove row </button>
+        <input className={'rmRow'} type='text' placeholder='row index'/>
         <button onClick={this.undo}> undo </button>
         <button onClick={this.redo}> redo </button>
       </div>

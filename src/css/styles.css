@@ -77,6 +77,9 @@ tbody > tr > th.r-spreadsheet {
 }
 
 .r-cell-edit {
+  
+  font-size: 15px;
+
   box-sizing: border-box;
   margin: 0px;
   padding: 1px 4px 0px 2px;

@@ -28549,21 +28549,41 @@ var AppActions = require('../actions/app-actions');
 
 var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
   addCol: function(e){
-    AppActions.addCol();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.addCol');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.addCol(inputVal);
   },
   rmCol: function(e){
-    AppActions.rmCol();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.rmCol');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.rmCol(inputVal);
   },
   addRow: function(e){
-    AppActions.addRow();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.addRow');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.addRow(inputVal);
   },
   rmRow: function(e){
-    AppActions.rmRow();
+    e.stopPropagation();
+    e.preventDefault();
+    var input = document.querySelector('.rmRow');
+    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    AppActions.rmRow(inputVal);
   },
   undo: function(e){
+    e.stopPropagation();
+    e.preventDefault();
     AppActions.undo();
   },
   redo: function(e){
+    e.stopPropagation();
+    e.preventDefault();
     AppActions.redo();
   },
 
@@ -28582,9 +28602,13 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
     return (
       React.createElement("div", null, 
         React.createElement("button", {onClick: this.addCol}, " new col "), 
+        React.createElement("input", {className: 'addCol', type: "text", placeholder: "col index"}), 
         React.createElement("button", {onClick: this.rmCol}, " remove col "), 
+        React.createElement("input", {className: 'rmCol', type: "text", placeholder: "col index"}), 
         React.createElement("button", {onClick: this.addRow}, " new row "), 
+        React.createElement("input", {className: 'addRow', type: "text", placeholder: "row index"}), 
         React.createElement("button", {onClick: this.rmRow}, " remove row "), 
+        React.createElement("input", {className: 'rmRow', type: "text", placeholder: "row index"}), 
         React.createElement("button", {onClick: this.undo}, " undo "), 
         React.createElement("button", {onClick: this.redo}, " redo ")
       )
@@ -29192,6 +29216,9 @@ var storeMethods = {
     return table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,0,cell() ));
     }));
+    // TODO incrementFormulas(table, index) 
+    // will have to test if the formula is inside the scope of the index change
+    // potentially a lot of incrementing!
   },
   _rmCol: function(table, index) {
     len = table.get('rows').first().get('cells').size - 1;
@@ -29228,20 +29255,27 @@ var storeMethods = {
   },
 
   _changeCellUser: function(table, row, col, newValue, oldValue){
+    // for all the cells iDepOn, remove me from their depOnMe
+    // as cells iDepOn may change: i might have a different formula or no longer be a formula
+    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn']);
+    iDepOn.forEach(function(depObj,key){
+        if (depObj.type === 'single'){
+          table = filterOutSingle(table, depObj);
+        } else if (depObj.type === 'array'|| depObj.type === 'table'){
+          table = filterOutArrayOrTable(table, depObj);
+        }
+    });
+
+    // mark any cells depending on me as needing to update
+    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
+    depOnMe.forEach(function(depObj,key){
+      table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
+        return cell.set('needsReCalc', true);
+      });
+    });
+
     // if a formula
     if (newValue && newValue.length && newValue[0] === '='){
-      var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
-      depOnMe.forEach(function(depObj,key){
-        table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
-          // filter me out of my dependent cells "iDepOn" as that might
-          // change when i parse this new formula
-          var newDepOnMe = cell.get('depOnMe').filter(function(depOnMeObj){
-            return depOnMeObj.row !== row && depOnMeObj.col !== col;
-          });
-          return cell.set('needsReCalc', true)
-          .set('depOnMe', newDepOnMe);
-        });
-      });
 
       table = this._parseFormula(table, row, col, newValue)
       return table.updateIn(['rows',row,'cells',col],function(cell){
@@ -29255,14 +29289,6 @@ var storeMethods = {
       if (newValue === ""){
         newValue = null;
       }
-      var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
-      depOnMe.forEach(function(depObj,key){
-        var row = depObj.row;
-        var col = depObj.col;
-        table = table.updateIn(['rows',row,'cells',col],function(cell){
-          return cell.set('needsReCalc', true);
-        });
-      });
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('value', newValue)
         .set('formula', null)
@@ -29270,6 +29296,29 @@ var storeMethods = {
         .set('fn', null)
         .set('needsReCalc',false);
       });
+    }
+
+    function filterOut(table, depRow, depCol){
+      return table.updateIn(['rows',depRow,'cells',depCol],function(cell){
+        var newDepOnMe = cell.get('depOnMe')
+        .filter(function(depOnMeObj){
+          return depOnMeObj.row !== row && depOnMeObj.col !== col;
+        });
+        return cell.set('depOnMe', newDepOnMe);
+      });
+    }
+    function filterOutSingle(table, depObj){
+      return filterOut(table, depObj.row, depObj.col);
+    }
+    function filterOutArrayOrTable(table, depObj){
+      _.range(depObj.col1, parseInt(depObj.col2) + 1)
+      .forEach(function(colVal){
+        _.range(depObj.row1, parseInt(depObj.row2) + 1)
+        .forEach(function(rowVal){
+          table = filterOut(table, rowVal, colVal);
+        });
+      });
+      return table;
     }
   },
 
@@ -29535,10 +29584,10 @@ var storeMethods = {
       }
     }
 
-    function getSingle(rowDep,colDep){
+    function getSingle(depCell){
       return {
-        value: getValue(rowDep, colDep),
-        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
+        value: getValue(depCell.row, depCell.col),
+        name: 'v' + depCell.row.toString() + '_' + depCell.col.toString() 
       };
     }
 

@@ -55,6 +55,9 @@ var storeMethods = {
     return table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,0,cell() ));
     }));
+    // TODO incrementFormulas(table, index) 
+    // will have to test if the formula is inside the scope of the index change
+    // potentially a lot of incrementing!
   },
   _rmCol: function(table, index) {
     len = table.get('rows').first().get('cells').size - 1;
@@ -91,20 +94,27 @@ var storeMethods = {
   },
 
   _changeCellUser: function(table, row, col, newValue, oldValue){
+    // for all the cells iDepOn, remove me from their depOnMe
+    // as cells iDepOn may change: i might have a different formula or no longer be a formula
+    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn']);
+    iDepOn.forEach(function(depObj,key){
+        if (depObj.type === 'single'){
+          table = filterOutSingle(table, depObj);
+        } else if (depObj.type === 'array'|| depObj.type === 'table'){
+          table = filterOutArrayOrTable(table, depObj);
+        }
+    });
+
+    // mark any cells depending on me as needing to update
+    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
+    depOnMe.forEach(function(depObj,key){
+      table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
+        return cell.set('needsReCalc', true);
+      });
+    });
+
     // if a formula
     if (newValue && newValue.length && newValue[0] === '='){
-      var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
-      depOnMe.forEach(function(depObj,key){
-        table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
-          // filter me out of my dependent cells "iDepOn" as that might
-          // change when i parse this new formula
-          var newDepOnMe = cell.get('depOnMe').filter(function(depOnMeObj){
-            return depOnMeObj.row !== row && depOnMeObj.col !== col;
-          });
-          return cell.set('needsReCalc', true)
-          .set('depOnMe', newDepOnMe);
-        });
-      });
 
       table = this._parseFormula(table, row, col, newValue)
       return table.updateIn(['rows',row,'cells',col],function(cell){
@@ -118,14 +128,6 @@ var storeMethods = {
       if (newValue === ""){
         newValue = null;
       }
-      var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
-      depOnMe.forEach(function(depObj,key){
-        var row = depObj.row;
-        var col = depObj.col;
-        table = table.updateIn(['rows',row,'cells',col],function(cell){
-          return cell.set('needsReCalc', true);
-        });
-      });
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('value', newValue)
         .set('formula', null)
@@ -133,6 +135,29 @@ var storeMethods = {
         .set('fn', null)
         .set('needsReCalc',false);
       });
+    }
+
+    function filterOut(table, depRow, depCol){
+      return table.updateIn(['rows',depRow,'cells',depCol],function(cell){
+        var newDepOnMe = cell.get('depOnMe')
+        .filter(function(depOnMeObj){
+          return depOnMeObj.row !== row && depOnMeObj.col !== col;
+        });
+        return cell.set('depOnMe', newDepOnMe);
+      });
+    }
+    function filterOutSingle(table, depObj){
+      return filterOut(table, depObj.row, depObj.col);
+    }
+    function filterOutArrayOrTable(table, depObj){
+      _.range(depObj.col1, parseInt(depObj.col2) + 1)
+      .forEach(function(colVal){
+        _.range(depObj.row1, parseInt(depObj.row2) + 1)
+        .forEach(function(rowVal){
+          table = filterOut(table, rowVal, colVal);
+        });
+      });
+      return table;
     }
   },
 
@@ -398,10 +423,10 @@ var storeMethods = {
       }
     }
 
-    function getSingle(rowDep,colDep){
+    function getSingle(depCell){
       return {
-        value: getValue(rowDep, colDep),
-        name: 'v' + rowDep.toString() + '_' + colDep.toString() 
+        value: getValue(depCell.row, depCell.col),
+        name: 'v' + depCell.row.toString() + '_' + depCell.col.toString() 
       };
     }
 
