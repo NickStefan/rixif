@@ -28702,6 +28702,7 @@ var TABLE = React.createClass({displayName: "TABLE",
       var newValue = "";
       var oldValue = formula ? formula : value;
       AppActions.changeCell(lastSelected.get('row'), lastSelected.get('col'), newValue, oldValue);
+      AppActions.selected(lastSelected.get('row'), lastSelected.get('col'));
     }
   },
 
