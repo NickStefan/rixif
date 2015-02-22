@@ -28552,28 +28552,28 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addCol');
-    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.addCol(inputVal);
   },
   rmCol: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmCol');
-    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.rmCol(inputVal);
   },
   addRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addRow');
-    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.addRow(inputVal);
   },
   rmRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmRow');
-    var inputVal = parseInt(input.value) !== NaN ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.rmRow(inputVal);
   },
   undo: function(e){
@@ -28702,6 +28702,7 @@ var TABLE = React.createClass({displayName: "TABLE",
       var newValue = "";
       var oldValue = formula ? formula : value;
       AppActions.changeCell(lastSelected.get('row'), lastSelected.get('col'), newValue, oldValue);
+      AppActions.selected(lastSelected.get('row'), lastSelected.get('col'));
     }
   },
 

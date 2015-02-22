@@ -19,10 +19,18 @@ gulp.task('browserify', function(){
 
 });
 
-gulp.task('copy', function(){
+gulp.task('copyHTML', function(){
   gulp.src('src/index.html')
   .pipe(gulp.dest('dist'));
+});
 
+gulp.task('copyHTMLstats', function(){
+  gulp.src('src/indexStats.html')
+  .pipe(rename('index.html'))
+  .pipe(gulp.dest('dist'));
+});
+
+gulp.task('copyJSandCSS', function(){
   gulp.src('src/css/*')
   .pipe(gulp.dest('dist/css'));
 
@@ -31,8 +39,12 @@ gulp.task('copy', function(){
   .pipe(gulp.dest('./'));
 });
 
-gulp.task('default',['browserify','copy']);
+gulp.task('dev',['browserify','copyJSandCSS','copyHTMLstats']);
 
 gulp.task('watch', function(){
-  gulp.watch('src/**/*.*', ['default']);
+  gulp.watch('src/**/*.*', ['dev']);
 });
+
+// /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --enable-precise-memory-info
+
+

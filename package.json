@@ -20,7 +20,9 @@
     "gulp": "^3.8.10",
     "gulp-browserify": "^0.5.1",
     "gulp-concat": "^2.4.3",
+    "gulp-memory-stats": "^1.0.0",
     "gulp-rename": "^1.2.0",
+    "memory-stats": "^1.0.2",
     "reactify": "^1.0.0"
   },
   "dependencies": {
