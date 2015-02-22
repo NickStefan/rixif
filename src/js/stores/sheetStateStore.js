@@ -75,15 +75,25 @@ var stateMethods = {
   _selected: function(table, row, col) {
     var lastSelected = table.get('lastSelected');
     var lastEditing = table.get('lastEditing');
-    // close any editing cells
-    table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
-      return cell.set('editing', false);
-    });
+    
+    // close any editing cells that may still exist (add remove col)
+    if (table.get('rows').size > lastEditing.get('row')
+    && table.getIn(['rows',0,'cells']).size > lastEditing.get('col')){
+      table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
+        return cell.set('editing', false);
+      });
+    }
     table = table.set('cellInEditMode', false);
-    // select cells and unselect previously selected cell
-    table = table.updateIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col')], function(cell) {
-      return cell.set('selected', false);
-    });
+
+    // unselect previously selected cell that may still exist (add remove col)
+    if (table.get('rows').size > lastEditing.get('row')
+    && table.getIn(['rows',0,'cells']).size > lastEditing.get('col')){
+      table = table.updateIn(['rows',lastSelected.get('row'),'cells',lastSelected.get('col')], function(cell) {
+        return cell.set('selected', false);
+      });
+    }
+
+    // select cells
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('selected', true);
     });
@@ -99,11 +109,15 @@ var stateMethods = {
     if (row === undefined) {
       return this._selected(table, lastEditing.get('row'), lastEditing.get('col'));
     }
-    table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
-      return cell.set('editing', false)
-      .set('lastKey',"")
-      .set('displayAction', "");
-    });
+    // update last editing cells that may still exist (add remove col)
+    if (table.get('rows').size > lastEditing.get('row')
+    && table.getIn(['rows',0,'cells']).size > lastEditing.get('col')){
+      table = table.updateIn(['rows',lastEditing.get('row'),'cells',lastEditing.get('col')], function(cell) {
+        return cell.set('editing', false)
+        .set('lastKey',"")
+        .set('displayAction', "");
+      });
+    }
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('editing', true)
       .set('lastKey',lastKey)
