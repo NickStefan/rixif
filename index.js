@@ -28552,28 +28552,28 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addCol');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
     AppActions.addCol(inputVal);
   },
   rmCol: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmCol');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
     AppActions.rmCol(inputVal);
   },
   addRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addRow');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
     AppActions.addRow(inputVal);
   },
   rmRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmRow');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
     AppActions.rmRow(inputVal);
   },
   undo: function(e){
@@ -29201,7 +29201,8 @@ var defaultTable = function(rows,cols) {
   rows = rows || 30;
   cols = cols || 10;
   return Immutable.Map({
-    rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); }))
+    rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
+    formulas: Immutable.Set()
   });
 };
 
@@ -29214,9 +29215,16 @@ var storeMethods = {
   _addCol: function(table, index) {
     len = table.get('rows').first().get('cells').size;
     index = index !== undefined ? index : len;
-    return table.set('rows', table.get('rows').map(function(row,rowIndex){
+
+    table = table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,0,cell() ));
     }));
+
+    table.updateIn(['formulas'], function(formulas){
+      return formulas.add({row:row, col:col});
+    });
+
+    return table;
     // TODO incrementFormulas(table, index) 
     // will have to test if the formula is inside the scope of the index change
     // potentially a lot of incrementing!
@@ -29258,7 +29266,7 @@ var storeMethods = {
   _changeCellUser: function(table, row, col, newValue, oldValue){
     // for all the cells iDepOn, remove me from their depOnMe
     // as cells iDepOn may change: i might have a different formula or no longer be a formula
-    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn']);
+    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
     iDepOn.forEach(function(depObj,key){
         if (depObj.type === 'single'){
           table = filterOutSingle(table, depObj);
@@ -29268,7 +29276,7 @@ var storeMethods = {
     });
 
     // mark any cells depending on me as needing to update
-    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
+    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe'],[]);
     depOnMe.forEach(function(depObj,key){
       table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
         return cell.set('needsReCalc', true);
@@ -29277,7 +29285,11 @@ var storeMethods = {
 
     // if a formula
     if (newValue && newValue.length && newValue[0] === '='){
-
+      // add to formula Set
+      table = table.updateIn(['formulas'], function(formulas){
+        return formulas.add({row:row, col:col});
+      });
+      // actually parse formula
       table = this._parseFormula(table, row, col, newValue)
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('formula', newValue)
@@ -29290,6 +29302,11 @@ var storeMethods = {
       if (newValue === ""){
         newValue = null;
       }
+      // remove cell from formula set
+      table = table.updateIn(['formulas'], function(formulas){
+        return formulas.remove({row:row, col:col});
+      });
+      // actually update this cell
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('value', newValue)
         .set('formula', null)
@@ -29917,7 +29934,6 @@ var stateMethods = {
         .set('displayAction', "");
       });
     }
-
     table = table.updateIn(['rows',row,'cells',col], function(cell) {
       return cell.set('editing', true)
       .set('lastKey',lastKey)

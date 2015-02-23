@@ -7,7 +7,8 @@ var _ = {
   uniq: require('lodash/array/uniq'),
   has: require('lodash/object/has'),
   flatten: require('lodash/array/flatten'),
-  every: require('lodash/collection/every')
+  every: require('lodash/collection/every'),
+  forEach: require('lodash/collection/forEach')
 };
 var colHelpers = require('../stores/col-num-helpers');
 var alpha = colHelpers.alpha;
@@ -39,7 +40,8 @@ var defaultTable = function(rows,cols) {
   rows = rows || 30;
   cols = cols || 10;
   return Immutable.Map({
-    rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); }))
+    rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
+    formulas: Immutable.Set()
   });
 };
 
@@ -52,19 +54,40 @@ var storeMethods = {
   _addCol: function(table, index) {
     len = table.get('rows').first().get('cells').size;
     index = index !== undefined ? index : len;
-    return table.set('rows', table.get('rows').map(function(row,rowIndex){
+
+    table = table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,0,cell() ));
     }));
-    // TODO incrementFormulas(table, index) 
-    // will have to test if the formula is inside the scope of the index change
-    // potentially a lot of incrementing!
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.row;
+      var col = formulaCell.col;
+      var addedCol = index;
+      table = this._rewriteFormulaAddCol(table, row, col, addedCol, 'col', 'add');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
+
   _rmCol: function(table, index) {
     len = table.get('rows').first().get('cells').size - 1;
     index = index !== undefined ? index : len;
-    return table.set('rows', table.get('rows').map(function(row,rowIndex){
+    table = table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,1 ));
     }));
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.row;
+      var col = formulaCell.col;
+      var removedCol = index;
+      table = this._rewriteFormulaRmCol(table, row, col, removedCol, 'col', 'remove');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
 
   _addRow: function(table, index) {
@@ -73,15 +96,164 @@ var storeMethods = {
     var newRow = _.isUndefined(table.get('rows').first()) ?
       defaultRow() : 
       defaultRow(table.get('rows').first().size);
-    return table.set('rows', table.get('rows').splice( index,0,newRow ));
+    table = table.set('rows', table.get('rows').splice( index,0,newRow ));
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.row;
+      var col = formulaCell.col;
+      var addedRow = index;
+      table = this._rewriteFormulaAddRow(table, row, col, addedRow, 'row', 'add');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
+
   _rmRow: function(table, index) {
     len = table.get('rows').size - 1;
     index = index !== undefined ? index : len;
-    return table.set('rows', table.get('rows').splice( index,1 ));
+    table = table.set('rows', table.get('rows').splice( index,1 ));
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.row;
+      var col = formulaCell.col;
+      var removedRow = index;
+      table = this._rewriteFormula(table, row, col, removedRow, 'row', 'remove');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
 
+  _rewriteFormula: function(table, row, col, changedIndex, rowOrCol, action){
 
+    // mark any cells depending on me as needing to update
+    // does this go here???
+    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe'],[]);
+    depOnMe.forEach(function(depObj,key){
+      table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
+        return cell.set('needsReCalc', true);
+      });
+    });
+
+    var formulaStr = table.getIn(['rows', row , 'cells', col, 'formula']);
+    var usedInputs = _.uniq(formulaStr.match(/([a-zA-Z]\d+\:[a-zA-Z]+\d+)|[a-zA-Z]+[0-9]+/g));
+
+    _.forEach(usedInputs, changeArgs);
+
+    table = table.updateIn(['rows', row, 'cells', col], function(cell){
+      return cell.set('formula', formulaStr);
+    });
+
+    table = this._parseFormula(table, row, col, formulaStr);
+
+    return table;
+
+    // TODO make this function work for: row and col && add and remove
+    function changeArgs (arg){
+      var newArg;
+      if (isArrayOrTable(arg) && arrayOrTableContains(rowOrCol, changedIndex) ){
+        if (action === 'add'){
+          newArg = lengthen(arg, rowOrCol);
+          formulaStr = formulaStr.replace( '/' + arg + '/', newArg);
+        }
+        if (action === 'remove'){
+          newArg = shorten(arg, rowOrCol);
+          formulaStr = formulaStr.replace( '/' + arg + '/', newArg);
+        }
+      }
+
+      else if (isSingle(arg) && single[ rowOrCol ] === changedIndex) {
+        if (action === 'add'){
+          newArg = increment(arg, rowOrCol); ??? is this right ???
+          formulaStr = formulaStr.replace( '/' + arg + '/', newArg);
+        }
+        if (action === 'remove'){
+
+        }
+      } 
+      else if (isSingle(arg) && getFromSingle(arg, rowOrCol) < changedIndex){
+        if (action === 'add'){
+
+        }
+        if (action === 'remove'){
+
+        }
+      } 
+      else if (isSingle(arg) && getFromSingle(arg, rowOrCol) > changedIndex) {
+        if (action === 'add'){
+
+        }
+        if (action === 'remove'){
+
+        }
+      }
+    }
+
+    function lengthen(arg, rowOrCol){
+      // increase array or table, rowOrCol length by 1;
+    }
+    function shorten(arg, rowOrCol){
+      // decrease array or table, rowOrCol length by 1;
+    }
+    function increment(arg, rowOrCol){
+      // increase row or col by 1
+    }
+    function decrement(arg, rowOrCol){
+      // decrease row or col by 1
+    }
+
+    function isSingle(arg){
+      if (/^[a-zA-Z]+[\d]+$/g.test(arg)){
+        return true
+      }
+      return false;
+    }
+    function isArrayOrTable(arg){
+      if (/([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g.test(arg)){
+        return true;
+      }
+      return false;
+    }
+    // function isTable(arg){
+    //   if (/([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g.test(arg)){
+    //     var letters = arg.match(/[a-zA-Z]+/g);
+    //     var nums = arg.match(/[0-9]+/g);
+    //     return nums[0] !== nums[1] && letters[0] !== letters[1];
+    //   }
+    //   return false;
+    // }
+    function getFromSingle(arg, rowOrCol){
+      var argRegexed
+      if (rowOrCol === 'row'){
+        argRegexed = arg.match(/(\d+)/g);
+        argRegexed = argRegexed.length > 0 ? argRegexed[0] : "";
+        return argRegexed;
+      }
+      if (rowOrCol === 'col'){
+        argRegexed = arg.match(/([a-zA-Z]+)/g);
+        argRegexed = argRegexed.length > 0 ? argRegexed[0] : "";
+        return argRegexed;
+      }
+    }
+    function arrayOrTableContains(rowOrCol, changedIndex){
+      var letters = arg.match(/[a-zA-Z]+/g);
+      var nums = arg.match(/[0-9]+/g);
+      var row1 = nums[0];
+      var row2 = nums[1];
+      var col1 = letters[0];
+      var col2 = letters[1];
+      if (rowOrCol === 'row' && changedIndex >= row1 && changedIndex <= row2){
+        return true;
+      }
+      if (rowOrCol === 'col' && changedIndex >= col1 && changedIndex <= col2){
+        return true;
+      }
+      return false;
+    }
+  },
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     var tmpTable = this._changeCellUser.apply(this,arguments);
@@ -96,7 +268,7 @@ var storeMethods = {
   _changeCellUser: function(table, row, col, newValue, oldValue){
     // for all the cells iDepOn, remove me from their depOnMe
     // as cells iDepOn may change: i might have a different formula or no longer be a formula
-    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn']);
+    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
     iDepOn.forEach(function(depObj,key){
         if (depObj.type === 'single'){
           table = filterOutSingle(table, depObj);
@@ -106,7 +278,7 @@ var storeMethods = {
     });
 
     // mark any cells depending on me as needing to update
-    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe']);
+    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe'],[]);
     depOnMe.forEach(function(depObj,key){
       table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
         return cell.set('needsReCalc', true);
@@ -115,7 +287,11 @@ var storeMethods = {
 
     // if a formula
     if (newValue && newValue.length && newValue[0] === '='){
-
+      // add to formula Set
+      table = table.updateIn(['formulas'], function(formulas){
+        return formulas.add({row:row, col:col});
+      });
+      // actually parse formula
       table = this._parseFormula(table, row, col, newValue)
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('formula', newValue)
@@ -128,6 +304,11 @@ var storeMethods = {
       if (newValue === ""){
         newValue = null;
       }
+      // remove cell from formula set
+      table = table.updateIn(['formulas'], function(formulas){
+        return formulas.remove({row:row, col:col});
+      });
+      // actually update this cell
       return table.updateIn(['rows',row,'cells',col],function(cell){
         return cell.set('value', newValue)
         .set('formula', null)
