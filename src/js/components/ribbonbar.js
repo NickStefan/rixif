@@ -7,28 +7,28 @@ var RIBBONBAR = React.createClass({
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addCol');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.addCol(inputVal);
   },
   rmCol: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmCol');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.rmCol(inputVal);
   },
   addRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addRow');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.addRow(inputVal);
   },
   rmRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmRow');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.rmRow(inputVal);
   },
   undo: function(e){

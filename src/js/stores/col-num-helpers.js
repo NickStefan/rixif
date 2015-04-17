@@ -25,8 +25,30 @@ alphaArrFull.forEach(function(v,k){
   alpha[v] = k;
 });
 
+var alphaHashFull = alphaArrFull.reduce(function(hash,value,key){
+  hash[value] = key;
+  return hash;
+},{});
+
+var getAlphaHeader = function(num){
+  if (num > 701) return null;
+  return spaceAlphaArrFull[num];
+}
+
+var letterToNumber = function(letter){
+  return alphaHashFull[letter];
+}
+
+var numberToLetter = function(num){
+  if (num > 701) return ;
+  return alphaArrFull[num];
+}
+
 module.exports = {
   alpha: alpha,
   alphaArrFull: alphaArrFull,
-  spaceAlphaArrFull: spaceAlphaArrFull
+  spaceAlphaArrFull: spaceAlphaArrFull,
+  getAlphaHeader: getAlphaHeader,
+  letterToNumber: letterToNumber,
+  numberToLetter: numberToLetter
 }

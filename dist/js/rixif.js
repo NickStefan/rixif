@@ -28456,7 +28456,7 @@ var CELL = React.createClass({displayName: "CELL",
   checkEditBoxWidth: function(givenWidth){
     var input = this.getDOMNode().firstChild;
     var firstWidth = givenWidth || this.state.width;
-    if (input.scrollWidth >= input.offsetWidth - 2){
+    if (input.scrollWidth > input.offsetWidth){
       input.style.width = (parseInt(input.offsetWidth) + firstWidth) + 'px';
     }
   },
@@ -28552,28 +28552,28 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addCol');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.addCol(inputVal);
   },
   rmCol: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmCol');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.rmCol(inputVal);
   },
   addRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.addRow');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.addRow(inputVal);
   },
   rmRow: function(e){
     e.stopPropagation();
     e.preventDefault();
     var input = document.querySelector('.rmRow');
-    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value)+1 : undefined;
+    var inputVal = !isNaN(parseInt(input.value)) ? parseInt(input.value) : undefined;
     AppActions.rmRow(inputVal);
   },
   undo: function(e){
@@ -28661,12 +28661,6 @@ var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
 
 var colHelpers = require('../stores/col-num-helpers');
-var spaceAlphaArrFull = colHelpers.spaceAlphaArrFull;
-
-var getAlphaHeader = function(num){
-  if (num > 701) return null;
-  return spaceAlphaArrFull[num];
-}
 
 var TABLE = React.createClass({displayName: "TABLE",
 
@@ -28762,7 +28756,7 @@ var TABLE = React.createClass({displayName: "TABLE",
       .map(function(row,colIndex){
         return (
           React.createElement("th", {key: colIndex, 
-           className: "r-spreadsheet"}, getAlphaHeader(colIndex))
+           className: "r-spreadsheet"}, colHelpers.getAlphaHeader(colIndex))
         )
     });
 
@@ -28997,10 +28991,32 @@ alphaArrFull.forEach(function(v,k){
   alpha[v] = k;
 });
 
+var alphaHashFull = alphaArrFull.reduce(function(hash,value,key){
+  hash[value] = key;
+  return hash;
+},{});
+
+var getAlphaHeader = function(num){
+  if (num > 701) return null;
+  return spaceAlphaArrFull[num];
+}
+
+var letterToNumber = function(letter){
+  return alphaHashFull[letter];
+}
+
+var numberToLetter = function(num){
+  if (num > 701) return ;
+  return alphaArrFull[num];
+}
+
 module.exports = {
   alpha: alpha,
   alphaArrFull: alphaArrFull,
-  spaceAlphaArrFull: spaceAlphaArrFull
+  spaceAlphaArrFull: spaceAlphaArrFull,
+  getAlphaHeader: getAlphaHeader,
+  letterToNumber: letterToNumber,
+  numberToLetter: numberToLetter
 }
 
 
@@ -29169,11 +29185,14 @@ var _ = {
   uniq: require('lodash/array/uniq'),
   has: require('lodash/object/has'),
   flatten: require('lodash/array/flatten'),
-  every: require('lodash/collection/every')
+  every: require('lodash/collection/every'),
+  forEach: require('lodash/collection/forEach')
 };
 var colHelpers = require('../stores/col-num-helpers');
 var alpha = colHelpers.alpha;
 var alphaArrFull = colHelpers.alphaArrFull;
+var numberToLetter = colHelpers.numberToLetter;
+var letterToNumber = colHelpers.letterToNumber;
 
 var formulaClass = require('../stores/formulas');
 
@@ -29213,45 +29232,273 @@ var table = defaultTable();
 // Private Store Methods
 var storeMethods = {
   _addCol: function(table, index) {
+    var self = this;
     len = table.get('rows').first().get('cells').size;
     index = index !== undefined ? index : len;
-
     table = table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,0,cell() ));
     }));
 
-    table.updateIn(['formulas'], function(formulas){
-      return formulas.add({row:row, col:col});
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      var addedCol = index;
+      // col will have shifted up by 1
+      if (col >= addedCol){
+        col = col + 1;
+      }
+      table = self._rewriteFormula(table, row, col, addedCol, 'col', 'add');
     });
 
+    // recalc all the cells in formulas ???
+
     return table;
-    // TODO incrementFormulas(table, index) 
-    // will have to test if the formula is inside the scope of the index change
-    // potentially a lot of incrementing!
   },
+
   _rmCol: function(table, index) {
+    var self = this;
     len = table.get('rows').first().get('cells').size - 1;
     index = index !== undefined ? index : len;
-    return table.set('rows', table.get('rows').map(function(row,rowIndex){
+    table = table.set('rows', table.get('rows').map(function(row,rowIndex){
       return row.set('cells', row.get('cells').splice( index,1 ));
     }));
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      var removedCol = index;
+      if (col >= removedCol){
+        col = col - 1;
+      }
+      table = self._rewriteFormula(table, row, col, removedCol, 'col', 'remove');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
 
   _addRow: function(table, index) {
+    var self = this;
     len = table.get('rows').size - 1;
     index = index !== undefined ? index : len;
     var newRow = _.isUndefined(table.get('rows').first()) ?
       defaultRow() : 
-      defaultRow(table.get('rows').first().size);
-    return table.set('rows', table.get('rows').splice( index,0,newRow ));
+      defaultRow(table.get('rows').first().get('cells').size);
+    table = table.set('rows', table.get('rows').splice( index,0,newRow ));
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      var addedRow = index;
+      if (row >= addedRow){
+        row = row + 1;
+      }
+      table = self._rewriteFormula(table, row, col, addedRow, 'row', 'add');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
+
   _rmRow: function(table, index) {
+    var self = this;
     len = table.get('rows').size - 1;
     index = index !== undefined ? index : len;
-    return table.set('rows', table.get('rows').splice( index,1 ));
+    table = table.set('rows', table.get('rows').splice( index,1 ));
+
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      var removedRow = index;
+      if (row >= removedRow){
+        row = row - 1;
+      }
+      table = self._rewriteFormula(table, row, col, removedRow, 'row', 'remove');
+    });
+
+    // recalc all the cells in formulas ???
+
+    return table;
   },
 
+  _rewriteFormula: function(table, row, col, changedIndex, rowOrCol, action){
+    // mark any cells depending on me as needing to update
+    // does this go here???
+    var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe'],[]);
+    depOnMe.forEach(function(depObj,key){
+      table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
+        return cell.set('needsReCalc', true);
+      });
+    });
 
+    var formulaStr = table.getIn(['rows', row , 'cells', col, 'formula']);
+    var usedInputs = _.uniq(formulaStr.match(/([a-zA-Z]\d+\:[a-zA-Z]+\d+)|[a-zA-Z]+[0-9]+/g));
+
+    _.forEach(usedInputs, changeArgs);
+
+    table = table.updateIn(['rows', row, 'cells', col], function(cell){
+      return cell.set('formula', formulaStr);
+    });
+
+    // get old coords of our cell being edited
+    var oldCoord = {
+      add: function (num) { return parseInt(num) - 1},
+      remove: function(num) { return parseInt(num) + 1}
+    };
+    var oldRow = rowOrCol === 'row' && row >= changedIndex ? oldCoord[action](row) : row;
+    var oldCol = rowOrCol === 'col' && col >= changedIndex ? oldCoord[action](col) : col;
+
+    // remove old iDepOn dependencies after moving the row or col
+    table = fixiDepOn(table, oldRow, oldCol);
+
+    // recalc the iDepOn and depOnMe
+    table = this._parseFormula(table, row, col, formulaStr, {skipCircleChecks: false});
+
+    // update table formulas set
+    table = table.updateIn(['formulas'], function(formulas){
+      return formulas
+      .delete(Immutable.Map({row: oldRow, col: oldCol}))
+      .add(Immutable.Map({row: row, col: col}));
+    });
+
+    return table;
+
+    function fixiDepOn(table, oldRow, oldCol){
+      // forEach iDepOn, remove myself (as my old coordinates) from their depOnMe
+      var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
+      iDepOn.forEach(function(iDepObj, key){
+        var newCoord = {
+          add: function (num) { return parseInt(num) + 1},
+          remove: function(num) { return parseInt(num) - 1}
+        };
+        // get new coords for the depObj that we need to update
+        var newDepRow = rowOrCol === 'row' && row >= changedIndex ? newCoord[action](iDepObj.row) : iDepObj.row;
+        var newDepCol = rowOrCol === 'col' && col >= changedIndex ? newCoord[action](iDepObj.col) : iDepObj.col;
+        
+        // filter out the old coords in the depOnMe of the now moved dependent cells
+        table = table.updateIn(['rows', newDepRow, 'cells', newDepCol],function(cell){
+          return cell
+          .set('depOnMe', cell.get('depOnMe')
+            .filter(function(dep,key){
+              return dep.row !== oldRow && dep.col !== oldCol;
+            })
+          );
+        });
+      });
+      return table;
+    }
+
+    // TODO make this function work for arrays and tables
+    function changeArgs (arg){
+      var newArg;
+      var regex;
+      if (isArrayOrTable(arg) && arrayOrTableContains(rowOrCol, changedIndex) ){
+        if (action === 'add'){
+          newArg = lengthen(arg, rowOrCol);
+        }
+        if (action === 'remove'){
+          newArg = shorten(arg, rowOrCol);
+        }
+      
+      } else if (isSingle(arg) && getFromSingle(arg, rowOrCol) >= changedIndex) {
+        if (action === 'add'){
+          newArg = increment(arg, rowOrCol);
+        }
+        if (action === 'remove'){
+          newArg = decrement(arg, rowOrCol);
+        }
+
+      } else if (isSingle(arg) && getFromSingle(arg, rowOrCol) < changedIndex){
+        if (action === 'add'){
+          // do nothing, added a rowOrCol after this rowOrCol index
+        }
+        if (action === 'remove'){
+          // do nothing, added a rowOrCol after this rowOrCol index
+        }
+
+      }
+      // if any changes to be made, make them on the formula string
+      if (newArg){
+        regex = new RegExp(arg,'g');
+        formulaStr = formulaStr.replace(regex, newArg);
+      }
+    }
+
+    function lengthen(arg, rowOrCol){
+      // increase array or table, rowOrCol length by 1;
+    }
+    function shorten(arg, rowOrCol){
+      // decrease array or table, rowOrCol length by 1;
+    }
+    function increment(arg, rowOrCol){
+      // increase row or col by 1
+      if (rowOrCol === 'row'){
+        var row = arg.match(/(\d+)/g)[0];
+        return arg.replace(/(\d+)/g, (parseInt(row) + 1).toString() );
+      }
+      if (rowOrCol === 'col'){
+        var col = arg.match(/([a-zA-Z]+)/g)[0];
+        var newCol = numberToLetter( letterToNumber(col) + 1);
+        return arg.replace(/([a-zA-Z]+)/g, newCol);
+      }
+    }
+    function decrement(arg, rowOrCol){
+      // decrease row or col by 1
+      if (rowOrCol === 'row'){
+        var row = arg.match(/(\d+)/g)[0];
+        return arg.replace(/(\d+)/g, (parseInt(row) - 1).toString() );
+      }
+      if (rowOrCol === 'col'){
+        var col = arg.match(/([a-zA-Z]+)/g)[0];
+        var newCol = numberToLetter( letterToNumber(col) - 1);
+        return arg.replace(/([a-zA-Z]+)/g, newCol);
+      }
+    }
+
+    function isSingle(arg){
+      if (/^[a-zA-Z]+[\d]+$/g.test(arg)){
+        return true
+      }
+      return false;
+    }
+    function isArrayOrTable(arg){
+      if (/([a-zA-Z]\d+\:[a-zA-Z]+\d+)/g.test(arg)){
+        return true;
+      }
+      return false;
+    }
+
+    function getFromSingle(arg, rowOrCol){
+      var argRegexed
+      if (rowOrCol === 'row'){
+        argRegexed = arg.match(/(\d+)/g);
+        argRegexed = argRegexed.length > 0 ? argRegexed[0] : "";
+        return argRegexed;
+      }
+      if (rowOrCol === 'col'){
+        argRegexed = arg.match(/([a-zA-Z]+)/g);
+        argRegexed = argRegexed.length > 0 ? argRegexed[0] : "";
+        return letterToNumber(argRegexed);
+      }
+    }
+    function arrayOrTableContains(rowOrCol, changedIndex){
+      var letters = arg.match(/[a-zA-Z]+/g);
+      var nums = arg.match(/[0-9]+/g);
+      var row1 = nums[0];
+      var row2 = nums[1];
+      var col1 = letters[0];
+      var col2 = letters[1];
+      if (rowOrCol === 'row' && changedIndex >= row1 && changedIndex <= row2){
+        return true;
+      }
+      if (rowOrCol === 'col' && changedIndex >= col1 && changedIndex <= col2){
+        return true;
+      }
+      return false;
+    }
+  },
 
   _changeCell: function(table, row, col, newValue, oldValue) {
     var tmpTable = this._changeCellUser.apply(this,arguments);
@@ -29287,7 +29534,7 @@ var storeMethods = {
     if (newValue && newValue.length && newValue[0] === '='){
       // add to formula Set
       table = table.updateIn(['formulas'], function(formulas){
-        return formulas.add({row:row, col:col});
+        return formulas.add(Immutable.Map({row:row, col:col}));
       });
       // actually parse formula
       table = this._parseFormula(table, row, col, newValue)
@@ -29304,7 +29551,7 @@ var storeMethods = {
       }
       // remove cell from formula set
       table = table.updateIn(['formulas'], function(formulas){
-        return formulas.remove({row:row, col:col});
+        return formulas.delete(Immutable.Map({row:row, col:col}));
       });
       // actually update this cell
       return table.updateIn(['rows',row,'cells',col],function(cell){
@@ -29341,7 +29588,8 @@ var storeMethods = {
   },
 
 
-  _parseFormula: function(table, row, col, formula){
+  _parseFormula: function(table, row, col, formula, options){
+    options = options || {};
     // regex out escaping characters and special characters
     formula = formula.replace(/[\\\;\#\^]/g,"");
     var error;
@@ -29410,7 +29658,7 @@ var storeMethods = {
         if (cellInfo && cellInfo.length <= 2){
           var rowDep = cellInfo[0].slice(1);
           var colDep = cellInfo[1];
-          if (checkCircleSingle(rowDep,colDep)){
+          if (!options.skipCircleChecks && checkCircleSingle(rowDep,colDep)){
             error = function() { return 'ERR: circle';};
             return;
           }
@@ -29424,7 +29672,7 @@ var storeMethods = {
           var colDep1 = cellInfo[1];
           var rowDep2 = cellInfo[2];
           var colDep2 = cellInfo[3];
-          if (checkCircleArrayTable(rowDep1,colDep1,rowDep2,colDep2)){
+          if (!options.skipCircleChecks && checkCircleArrayTable(rowDep1,colDep1,rowDep2,colDep2)){
             error = function() { return 'ERR: circle';};
             return;
           }
@@ -29813,7 +30061,7 @@ module.exports = {
   table: table
 };
 
-},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
+},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
@@ -29879,7 +30127,7 @@ var stateMethods = {
     index = index !== undefined ? index : len;
     var newRow = _.isUndefined(table.get('rows').first()) ?
       defaultRow() : 
-      defaultRow(table.get('rows').first().size);
+      defaultRow(table.get('rows').first().get('cells').size);
     return table.set('rows', table.get('rows').splice( index,0,newRow ));
   },
   _rmRow: function(table, index) {

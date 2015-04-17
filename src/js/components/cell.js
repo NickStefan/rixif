@@ -65,7 +65,7 @@ var CELL = React.createClass({
   checkEditBoxWidth: function(givenWidth){
     var input = this.getDOMNode().firstChild;
     var firstWidth = givenWidth || this.state.width;
-    if (input.scrollWidth >= input.offsetWidth - 2){
+    if (input.scrollWidth > input.offsetWidth){
       input.style.width = (parseInt(input.offsetWidth) + firstWidth) + 'px';
     }
   },

@@ -3,12 +3,6 @@ var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
 
 var colHelpers = require('../stores/col-num-helpers');
-var spaceAlphaArrFull = colHelpers.spaceAlphaArrFull;
-
-var getAlphaHeader = function(num){
-  if (num > 701) return null;
-  return spaceAlphaArrFull[num];
-}
 
 var TABLE = React.createClass({
 
@@ -104,7 +98,7 @@ var TABLE = React.createClass({
       .map(function(row,colIndex){
         return (
           <th key={colIndex} 
-           className={"r-spreadsheet"}>{getAlphaHeader(colIndex)}</th>
+           className={"r-spreadsheet"}>{colHelpers.getAlphaHeader(colIndex)}</th>
         )
     });
 

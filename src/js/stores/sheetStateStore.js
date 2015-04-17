@@ -63,7 +63,7 @@ var stateMethods = {
     index = index !== undefined ? index : len;
     var newRow = _.isUndefined(table.get('rows').first()) ?
       defaultRow() : 
-      defaultRow(table.get('rows').first().size);
+      defaultRow(table.get('rows').first().get('cells').size);
     return table.set('rows', table.get('rows').splice( index,0,newRow ));
   },
   _rmRow: function(table, index) {
