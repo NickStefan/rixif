@@ -29250,7 +29250,12 @@ var storeMethods = {
       table = self._rewriteFormula(table, row, col, addedCol, 'col', 'add');
     });
 
-    // recalc all the cells in formulas ???
+    // recalc all the cells in formulas
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      table = self._updateFormulas(table, row, col, table.getIn(['rows', row, 'cells', col, 'formula']));
+    });
 
     return table;
   },
@@ -29259,21 +29264,57 @@ var storeMethods = {
     var self = this;
     len = table.get('rows').first().get('cells').size - 1;
     index = index !== undefined ? index : len;
-    table = table.set('rows', table.get('rows').map(function(row,rowIndex){
-      return row.set('cells', row.get('cells').splice( index,1 ));
-    }));
 
+    // if we're removing a col that has formulas,
+    // need to remove its references before removing itself
     table.get('formulas').forEach(function(formulaCell){
       var row = formulaCell.get('row');
       var col = formulaCell.get('col');
       var removedCol = index;
-      if (col >= removedCol){
+
+      if (col === removedCol){
+        var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
+        iDepOn.forEach(function(depObj, key){
+          // filter me out of their depOnMe lists
+          table = table.updateIn(['rows', depObj.row, 'cells', depObj.col],function(cell){
+            return cell
+            .set('depOnMe', cell.get('depOnMe')
+              .filter(function(dep,key){
+                return dep.row !== row && dep.col !== col;
+              })
+            );
+          });
+        });
+
+        table = table.updateIn(['formulas'], function(formulas){
+          return formulas
+          .delete(Immutable.Map({row: row, col: col}))
+        });
+      }
+    });
+
+    // remove column
+    table = table.set('rows', table.get('rows').map(function(row,rowIndex){
+      return row.set('cells', row.get('cells').splice( index,1 ));
+    }));
+
+    // update all other formulas
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      var removedCol = index;
+      if (col > removedCol){
         col = col - 1;
       }
       table = self._rewriteFormula(table, row, col, removedCol, 'col', 'remove');
     });
 
-    // recalc all the cells in formulas ???
+    // recalc all the cells in formulas
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      table = self._updateFormulas(table, row, col, table.getIn(['rows', row, 'cells', col, 'formula']));
+    });
 
     return table;
   },
@@ -29297,7 +29338,12 @@ var storeMethods = {
       table = self._rewriteFormula(table, row, col, addedRow, 'row', 'add');
     });
 
-    // recalc all the cells in formulas ???
+    // recalc all the cells in formulas
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      table = self._updateFormulas(table, row, col, table.getIn(['rows', row, 'cells', col, 'formula']));
+    });
 
     return table;
   },
@@ -29306,8 +29352,39 @@ var storeMethods = {
     var self = this;
     len = table.get('rows').size - 1;
     index = index !== undefined ? index : len;
+
+    // if we're removing a row that has formulas,
+    // need to remove its references before removing itself
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      var removedRow = index;
+
+      if (row === removedRow){
+        var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
+        iDepOn.forEach(function(depObj, key){
+          // filter me out of their depOnMe lists
+          table = table.updateIn(['rows', depObj.row, 'cells', depObj.col],function(cell){
+            return cell
+            .set('depOnMe', cell.get('depOnMe')
+              .filter(function(dep,key){
+                return dep.row !== row && dep.col !== col;
+              })
+            );
+          });
+        });
+
+        table = table.updateIn(['formulas'], function(formulas){
+          return formulas
+          .delete(Immutable.Map({row: row, col: col}))
+        });
+      }
+    });
+
+    // remove row
     table = table.set('rows', table.get('rows').splice( index,1 ));
 
+    // update all other formulas
     table.get('formulas').forEach(function(formulaCell){
       var row = formulaCell.get('row');
       var col = formulaCell.get('col');
@@ -29318,14 +29395,18 @@ var storeMethods = {
       table = self._rewriteFormula(table, row, col, removedRow, 'row', 'remove');
     });
 
-    // recalc all the cells in formulas ???
+    // recalc all the cells in formulas
+    table.get('formulas').forEach(function(formulaCell){
+      var row = formulaCell.get('row');
+      var col = formulaCell.get('col');
+      table = self._updateFormulas(table, row, col, table.getIn(['rows', row, 'cells', col, 'formula']));
+    });
 
     return table;
   },
 
   _rewriteFormula: function(table, row, col, changedIndex, rowOrCol, action){
     // mark any cells depending on me as needing to update
-    // does this go here???
     var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe'],[]);
     depOnMe.forEach(function(depObj,key){
       table = table.updateIn(['rows',depObj.row,'cells',depObj.col],function(cell){
@@ -29333,7 +29414,7 @@ var storeMethods = {
       });
     });
 
-    var formulaStr = table.getIn(['rows', row , 'cells', col, 'formula']);
+    var formulaStr = table.getIn(['rows', row , 'cells', col, 'formula'], "") || "";
     var usedInputs = _.uniq(formulaStr.match(/([a-zA-Z]\d+\:[a-zA-Z]+\d+)|[a-zA-Z]+[0-9]+/g));
 
     _.forEach(usedInputs, changeArgs);
