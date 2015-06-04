@@ -29328,18 +29328,7 @@ var storeMethods = {
       var removedCol = index;
 
       if (col === removedCol){
-        var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
-        iDepOn.forEach(function(depObj, key){
-          // filter me out of their depOnMe lists
-          table = table.updateIn(['rows', depObj.row, 'cells', depObj.col],function(cell){
-            return cell
-            .set('depOnMe', cell.get('depOnMe')
-              .filter(function(dep,key){
-                return dep.row !== row && dep.col !== col;
-              })
-            );
-          });
-        });
+        table = self._cleariDepOn(table, row, col, row, col);
 
         table = table.updateIn(['formulas'], function(formulas){
           return formulas
@@ -29416,19 +29405,8 @@ var storeMethods = {
       var removedRow = index;
 
       if (row === removedRow){
-        var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
-        iDepOn.forEach(function(depObj, key){
-          // filter me out of their depOnMe lists
-          table = table.updateIn(['rows', depObj.row, 'cells', depObj.col],function(cell){
-            return cell
-            .set('depOnMe', cell.get('depOnMe')
-              .filter(function(dep,key){
-                return dep.row !== row && dep.col !== col;
-              })
-            );
-          });
-        });
-
+        table = self._cleariDepOn(table, row, col, row, col);
+        
         table = table.updateIn(['formulas'], function(formulas){
           return formulas
           .delete(Immutable.Map({row: row, col: col}))
@@ -29487,7 +29465,7 @@ var storeMethods = {
     var oldCol = rowOrCol === 'col' && col >= changedIndex ? oldCoord[action](col) : col;
 
     // remove old iDepOn dependencies after moving the row or col
-    table = fixiDepOn(table, oldRow, oldCol);
+    table = this._cleariDepOn(table, row, col, oldRow, oldCol);
 
     // recalc the iDepOn and depOnMe
     table = this._parseFormula(table, row, col, formulaStr, {skipCircleChecks: false});
@@ -29501,63 +29479,6 @@ var storeMethods = {
 
     return table;
 
-    function fixiDepOn(table, oldRow, oldCol){
-      // forEach iDepOn, remove myself (as my old coordinates) from their depOnMe
-      var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
-      iDepOn.forEach(function(iDepObj, key){
-        if (iDepObj.type === 'single'){
-          fixiDepOnSingle(iDepObj, oldRow, oldCol);
-        } else if (iDepObj.type === 'array' || iDepObj.type === 'table'){
-          fixiDepOnArrayOrTable(iDepObj, oldRow, oldCol);
-        }
-      });
-      return table;
-
-      function fixiDepOnSingle(iDepObj, oldRow, oldCol){
-        var newCoord = {
-          add: function (num) { return parseInt(num) + 1},
-          remove: function(num) { return parseInt(num) - 1}
-        };
-        // get new coords for the depObj that we need to update
-        var newDepRow = rowOrCol === 'row' && row >= changedIndex ? newCoord[action](iDepObj.row) : iDepObj.row;
-        var newDepCol = rowOrCol === 'col' && col >= changedIndex ? newCoord[action](iDepObj.col) : iDepObj.col;
-        
-        // filter out the old coords in the depOnMe of the now moved dependent cells
-        table = table.updateIn(['rows', newDepRow, 'cells', newDepCol],function(cell){
-          return cell
-          .set('depOnMe', cell.get('depOnMe')
-            .filter(function(dep,key){
-              return dep.row !== oldRow && dep.col !== oldCol;
-            })
-          );
-        });      
-      }
-
-      // TODO FIX ARRAY AND TABLE DEPENDENCY UPDATING
-      function fixiDepOnArrayOrTable(iDepObj, oldRow, oldCol){
-        var newCoord = {
-          add: function (num) { return parseInt(num) + 1},
-          remove: function(num) { return parseInt(num) - 1}
-        };
-        // get new coords for the depObj that we need to update
-        var newDepRow1 = rowOrCol === 'row' && row >= changedIndex ? newCoord[action](iDepObj.row) : iDepObj.row;
-        var newDepRow2 = rowOrCol === 'row' && row >= changedIndex ? newCoord[action](iDepObj.row) : iDepObj.row;
-        var newDepCol1 = rowOrCol === 'col' && col >= changedIndex ? newCoord[action](iDepObj.col) : iDepObj.col;
-        var newDepCol2 = rowOrCol === 'col' && col >= changedIndex ? newCoord[action](iDepObj.col) : iDepObj.col;
-        
-        // filter out the old coords in the depOnMe of the now moved dependent cells
-        table = table.updateIn(['rows', newDepRow, 'cells', newDepCol],function(cell){
-          return cell
-          .set('depOnMe', cell.get('depOnMe')
-            .filter(function(dep,key){
-              return dep.row !== oldRow && dep.col !== oldCol;
-            })
-          );
-        });      
-      }
-    }
-
-    // TODO make this function work for arrays and tables
     function changeArgs (arg){
       var newArg;
       var regex;
@@ -29595,9 +29516,35 @@ var storeMethods = {
 
     function lengthen(arg, rowOrCol){
       // increase array or table, rowOrCol length by 1;
+      var letters = arg.match(/[a-zA-Z]+/g);
+      var nums = arg.match(/[0-9]+/g);
+      var row1 = nums[0];
+      var row2 = nums[1];
+      var col1 = letters[0];
+      var col2 = letters[1];
+
+      if (rowOrCol === 'row'){
+        row2 = (parseInt(row2) + 1).toString();
+      } else if (rowOrCol === 'col'){
+        col2 = numberToLetter( letterToNumber(col2) + 1);
+      }
+      return col1 + row1 + ":" + col2 + row2;
     }
     function shorten(arg, rowOrCol){
       // decrease array or table, rowOrCol length by 1;
+      var letters = arg.match(/[a-zA-Z]+/g);
+      var nums = arg.match(/[0-9]+/g);
+      var row1 = nums[0];
+      var row2 = nums[1];
+      var col1 = letters[0];
+      var col2 = letters[1];
+
+      if (rowOrCol === 'row'){
+        row2 = (parseInt(row2) - 1).toString();
+      } else if (rowOrCol === 'col'){
+        col2 = numberToLetter( letterToNumber(col2) - 1);
+      }
+      return col1 + row1 + ":" + col2 + row2;
     }
     function increment(arg, rowOrCol){
       // increase row or col by 1
@@ -29678,16 +29625,8 @@ var storeMethods = {
   },
 
   _changeCellUser: function(table, row, col, newValue, oldValue){
-    // for all the cells iDepOn, remove me from their depOnMe
-    // as cells iDepOn may change: i might have a different formula or no longer be a formula
-    var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
-    iDepOn.forEach(function(depObj,key){
-        if (depObj.type === 'single'){
-          table = filterOutSingle(table, depObj);
-        } else if (depObj.type === 'array'|| depObj.type === 'table'){
-          table = filterOutArrayOrTable(table, depObj);
-        }
-    });
+    
+    table = this._cleariDepOn(table,row,col,row,col);
 
     // mark any cells depending on me as needing to update
     var depOnMe = table.getIn(['rows',row,'cells',col,'depOnMe'],[]);
@@ -29730,11 +29669,27 @@ var storeMethods = {
       });
     }
 
+  },
+
+  _cleariDepOn: function(table, targetRow, targetCol, rowRef, colRef){
+    // for all the cells iDepOn, remove me from their depOnMe
+    // as cells iDepOn may change: i might have a different formula or no longer be a formula
+    var iDepOn = table.getIn(['rows',targetRow,'cells',targetCol,'iDepOn'],[]);
+    iDepOn.forEach(function(depObj,key){
+        if (depObj.type === 'single'){
+          table = filterOutSingle(table, depObj);
+        } else if (depObj.type === 'array'|| depObj.type === 'table'){
+          table = filterOutArrayOrTable(table, depObj);
+        }
+    });
+
+    return table;
+
     function filterOut(table, depRow, depCol){
       return table.updateIn(['rows',depRow,'cells',depCol],function(cell){
         var newDepOnMe = cell.get('depOnMe')
         .filter(function(depOnMeObj){
-          return depOnMeObj.row !== row && depOnMeObj.col !== col;
+          return depOnMeObj.row !== rowRef && depOnMeObj.col !== colRef;
         });
         return cell.set('depOnMe', newDepOnMe);
       });
