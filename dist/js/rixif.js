@@ -29505,6 +29505,15 @@ var storeMethods = {
       // forEach iDepOn, remove myself (as my old coordinates) from their depOnMe
       var iDepOn = table.getIn(['rows',row,'cells',col,'iDepOn'],[]);
       iDepOn.forEach(function(iDepObj, key){
+        if (iDepObj.type === 'single'){
+          fixiDepOnSingle(iDepObj, oldRow, oldCol);
+        } else if (iDepObj.type === 'array' || iDepObj.type === 'table'){
+          fixiDepOnArrayOrTable(iDepObj, oldRow, oldCol);
+        }
+      });
+      return table;
+
+      function fixiDepOnSingle(iDepObj, oldRow, oldCol){
         var newCoord = {
           add: function (num) { return parseInt(num) + 1},
           remove: function(num) { return parseInt(num) - 1}
@@ -29521,16 +29530,39 @@ var storeMethods = {
               return dep.row !== oldRow && dep.col !== oldCol;
             })
           );
-        });
-      });
-      return table;
+        });      
+      }
+
+      // TODO FIX ARRAY AND TABLE DEPENDENCY UPDATING
+      // CURRENTLY JUST A COPY OF THE SINGLE VERSION...
+      function fixiDepOnArrayOrTable(iDepObj, oldRow, oldCol){
+        var newCoord = {
+          add: function (num) { return parseInt(num) + 1},
+          remove: function(num) { return parseInt(num) - 1}
+        };
+        // get new coords for the depObj that we need to update
+        var newDepRow1 = rowOrCol === 'row' && row >= changedIndex ? newCoord[action](iDepObj.row) : iDepObj.row;
+        var newDepRow2 = rowOrCol === 'row' && row >= changedIndex ? newCoord[action](iDepObj.row) : iDepObj.row;
+        var newDepCol1 = rowOrCol === 'col' && col >= changedIndex ? newCoord[action](iDepObj.col) : iDepObj.col;
+        var newDepCol2 = rowOrCol === 'col' && col >= changedIndex ? newCoord[action](iDepObj.col) : iDepObj.col;
+        
+        // filter out the old coords in the depOnMe of the now moved dependent cells
+        table = table.updateIn(['rows', newDepRow, 'cells', newDepCol],function(cell){
+          return cell
+          .set('depOnMe', cell.get('depOnMe')
+            .filter(function(dep,key){
+              return dep.row !== oldRow && dep.col !== oldCol;
+            })
+          );
+        });      
+      }
     }
 
     // TODO make this function work for arrays and tables
     function changeArgs (arg){
       var newArg;
       var regex;
-      if (isArrayOrTable(arg) && arrayOrTableContains(rowOrCol, changedIndex) ){
+      if (isArrayOrTable(arg) && arrayOrTableContains(arg, rowOrCol, changedIndex) ){
         if (action === 'add'){
           newArg = lengthen(arg, rowOrCol);
         }
@@ -29607,7 +29639,7 @@ var storeMethods = {
     }
 
     function getFromSingle(arg, rowOrCol){
-      var argRegexed
+      var argRegexed;
       if (rowOrCol === 'row'){
         argRegexed = arg.match(/(\d+)/g);
         argRegexed = argRegexed.length > 0 ? argRegexed[0] : "";
@@ -29619,7 +29651,7 @@ var storeMethods = {
         return letterToNumber(argRegexed);
       }
     }
-    function arrayOrTableContains(rowOrCol, changedIndex){
+    function arrayOrTableContains(arg, rowOrCol, changedIndex){
       var letters = arg.match(/[a-zA-Z]+/g);
       var nums = arg.match(/[0-9]+/g);
       var row1 = nums[0];
