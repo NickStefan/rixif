@@ -28263,7 +28263,7 @@ var AppActions = _.mapValues(ActionTypes, function(fnName){
 module.exports = AppActions;
 
 
-},{"../actions/command-manager":82,"../constants/app-constants":88,"../dispatchers/app-dispatcher":89,"lodash/lang/toArray":67,"lodash/object/extend":69,"lodash/object/has":70,"lodash/object/mapValues":73}],82:[function(require,module,exports){
+},{"../actions/command-manager":82,"../constants/app-constants":90,"../dispatchers/app-dispatcher":91,"lodash/lang/toArray":67,"lodash/object/extend":69,"lodash/object/has":70,"lodash/object/mapValues":73}],82:[function(require,module,exports){
 
 var LocalCommandManager = function(AppDispatcher, io){
 
@@ -28388,7 +28388,7 @@ var APP = React.createClass({displayName: "APP",
 module.exports = APP;
 
 
-},{"../stores/app-store":91,"./ribbonbar.js":85,"./table":87,"react/dist/react-with-addons.js":80}],84:[function(require,module,exports){
+},{"../stores/app-store":93,"./ribbonbar.js":86,"./table":89,"react/dist/react-with-addons.js":80}],84:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 var classSet = React.addons.classSet;
 var AppActions = require('../actions/app-actions');
@@ -28544,6 +28544,20 @@ module.exports = CELL;
 
 },{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],85:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
+var AppActions = require('../actions/app-actions');
+var colHelpers = require('../stores/col-num-helpers');
+
+var COLHEADER = React.createClass({displayName: "COLHEADER",
+  render: function(){
+    var colName = colHelpers.getAlphaHeader(this.props.colIndex);
+    return React.createElement("th", {className: "r-spreadsheet"}, colName);
+  }
+});
+
+module.exports = COLHEADER;
+
+},{"../actions/app-actions":81,"../stores/col-num-helpers":94,"react/dist/react-with-addons.js":80}],86:[function(require,module,exports){
+var React = require('react/dist/react-with-addons.js');
 
 var AppActions = require('../actions/app-actions');
 
@@ -28600,7 +28614,7 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
     <input placeholder="ex: green" onKeyDown={this.colorCell} type="text" />
     */
     return (
-      React.createElement("div", null, 
+      React.createElement("div", {className: "ribbon-bar"}, 
         React.createElement("button", {onClick: this.addCol}, " new col "), 
         React.createElement("input", {className: 'addCol', type: "text", placeholder: "col index"}), 
         React.createElement("button", {onClick: this.rmCol}, " remove col "), 
@@ -28619,10 +28633,11 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
 module.exports = RIBBONBAR;
 
 
-},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],86:[function(require,module,exports){
+},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],87:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 
 var CELL = require('./cell');
+var ROWHEADER = require('./rowheader');
 
 var ROW = React.createClass({displayName: "ROW",
   render: function(){
@@ -28632,9 +28647,9 @@ var ROW = React.createClass({displayName: "ROW",
       // mutable array of immutables
       .map(function(cellData,i){
       if (i === 0){
-        return (React.createElement("th", {className: "r-spreadsheet", key: i}, self.props.index + 1));
+        return React.createElement(ROWHEADER, {key: i, realIndex: self.props.index});
       } else {
-        return (React.createElement(CELL, {cellData: cellData, state:  self.props.state.get('cells').get(i-1), colIndex: i-1, rowIndex: self.props.index, key: i})); 
+        return React.createElement(CELL, {cellData: cellData, state:  self.props.state.get('cells').get(i-1), colIndex: i-1, rowIndex: self.props.index, key: i}); 
       }
     });
     return (
@@ -28655,10 +28670,51 @@ var ROW = React.createClass({displayName: "ROW",
 module.exports = ROW;
 
 
-},{"./cell":84,"react/dist/react-with-addons.js":80}],87:[function(require,module,exports){
+},{"./cell":84,"./rowheader":88,"react/dist/react-with-addons.js":80}],88:[function(require,module,exports){
+var React = require('react/dist/react-with-addons.js');
+var AppActions = require('../actions/app-actions');
+
+var ROWHEADER = React.createClass({displayName: "ROWHEADER",
+  // renderMenu: function(e){
+  //   e.preventDefault();
+  //   e.stopPropagation();
+
+  //   this.setState({
+  //     displayMenu: true,
+  //     menuStyle: {
+  //       position: absolute,
+  //       zIndex: 10,
+  //       top: e.clientX,
+  //       left: e.clientY
+  //     }
+  //   });
+  // },
+
+  render: function(){
+    var menu = null;
+    var displayIndex = this.props.realIndex + 1;
+    // if (this.state.displayMenu){
+    //   menu = (
+    //       <Menu style={this.state.menuStyle}}>
+    //       </Menu>
+    //   );
+    // }
+    return (
+      React.createElement("th", {className: "r-spreadsheet"}, 
+        displayIndex, 
+        menu 
+      )
+    );
+  }
+});
+
+module.exports = ROWHEADER;
+
+},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],89:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
+var COLHEADER = require('./colheader');
 
 var colHelpers = require('../stores/col-num-helpers');
 
@@ -28748,15 +28804,14 @@ var TABLE = React.createClass({displayName: "TABLE",
       )
     });
       
-    var rowsHeaders = this.props.table.get('rows').first().get('cells')
+    var columnHeaders = this.props.table.get('rows').first().get('cells')
       .toArray()
       // mutable array of immutables
       .concat(null)
       .slice()
       .map(function(row,colIndex){
         return (
-          React.createElement("th", {key: colIndex, 
-           className: "r-spreadsheet"}, colHelpers.getAlphaHeader(colIndex))
+          React.createElement(COLHEADER, {key: colIndex, colIndex: colIndex})
         )
     });
 
@@ -28765,7 +28820,7 @@ var TABLE = React.createClass({displayName: "TABLE",
        onKeyDown: this.navigate, className: "r-spreadsheet"}, 
         React.createElement("thead", null, 
           React.createElement("tr", null, 
-            rowsHeaders
+            columnHeaders
           )
         ), 
         React.createElement("tbody", null, 
@@ -28791,7 +28846,7 @@ var TABLE = React.createClass({displayName: "TABLE",
 module.exports = TABLE;
 
 
-},{"../actions/app-actions":81,"../stores/col-num-helpers":92,"./row":86,"react/dist/react-with-addons.js":80}],88:[function(require,module,exports){
+},{"../actions/app-actions":81,"../stores/col-num-helpers":94,"./colheader":85,"./row":87,"react/dist/react-with-addons.js":80}],90:[function(require,module,exports){
 module.exports = {
   ActionTypes: {
 
@@ -28834,7 +28889,7 @@ module.exports = {
   }
 };
 
-},{}],89:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 var Dispatcher = require('flux').Dispatcher;
 var AppConstants = require('../constants/app-constants');
 var ActionTypes = AppConstants.ActionTypes;
@@ -28856,7 +28911,7 @@ var AppDispatcher = _.mapValues(ActionTypes,function(fnName){
 module.exports = _.extend(new Dispatcher, AppDispatcher);
 
 
-},{"../constants/app-constants":88,"flux":1,"lodash/object/extend":69,"lodash/object/mapValues":73}],90:[function(require,module,exports){
+},{"../constants/app-constants":90,"flux":1,"lodash/object/extend":69,"lodash/object/mapValues":73}],92:[function(require,module,exports){
 
 var RIXIF = require('./components/app');
 
@@ -28864,7 +28919,7 @@ module.exports = RIXIF;
 
 
 
-},{"./components/app":83}],91:[function(require,module,exports){
+},{"./components/app":83}],93:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 var _ = {
   extend: require('lodash/object/extend')
@@ -28963,7 +29018,7 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
 
 module.exports = AppStore;
 
-},{"../constants/app-constants":88,"../dispatchers/app-dispatcher":89,"../stores/sheetDataStore":94,"../stores/sheetStateStore":95,"events":4,"lodash/object/extend":69}],92:[function(require,module,exports){
+},{"../constants/app-constants":90,"../dispatchers/app-dispatcher":91,"../stores/sheetDataStore":96,"../stores/sheetStateStore":97,"events":4,"lodash/object/extend":69}],94:[function(require,module,exports){
 /////////////////////////////
 // Header and Col Letter to Number Calculations 
 
@@ -29020,7 +29075,7 @@ module.exports = {
 }
 
 
-},{}],93:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 var _ = {
   toArray: require('lodash/lang/toArray'),
   isNumber: require('lodash/lang/isNumber'),
@@ -29175,7 +29230,7 @@ var formulas = {
 
 module.exports = formulas;
 
-},{"lodash/array/flatten":6,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/collection/some":10,"lodash/lang/isNumber":63,"lodash/lang/toArray":67}],94:[function(require,module,exports){
+},{"lodash/array/flatten":6,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/collection/some":10,"lodash/lang/isNumber":63,"lodash/lang/toArray":67}],96:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
@@ -30142,7 +30197,7 @@ module.exports = {
   table: table
 };
 
-},{"../stores/col-num-helpers":92,"../stores/formulas":93,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],95:[function(require,module,exports){
+},{"../stores/col-num-helpers":94,"../stores/formulas":95,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],97:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
@@ -30326,4 +30381,4 @@ module.exports = {
   table: table
 }
 
-},{"immutable":5,"lodash/lang/isUndefined":66,"lodash/object/mapValues":73,"lodash/utility/range":79}]},{},[90])
+},{"immutable":5,"lodash/lang/isUndefined":66,"lodash/object/mapValues":73,"lodash/utility/range":79}]},{},[92])

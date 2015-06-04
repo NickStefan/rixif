@@ -1,6 +1,7 @@
 var React = require('react/dist/react-with-addons.js');
 
 var CELL = require('./cell');
+var ROWHEADER = require('./rowheader');
 
 var ROW = React.createClass({
   render: function(){
@@ -10,9 +11,9 @@ var ROW = React.createClass({
       // mutable array of immutables
       .map(function(cellData,i){
       if (i === 0){
-        return (<th className={"r-spreadsheet"} key={i}>{self.props.index + 1 }</th>);
+        return <ROWHEADER key={i} realIndex={self.props.index} />;
       } else {
-        return (<CELL cellData={cellData} state={ self.props.state.get('cells').get(i-1) } colIndex={i-1} rowIndex={self.props.index} key={i} />); 
+        return <CELL cellData={cellData} state={ self.props.state.get('cells').get(i-1) } colIndex={i-1} rowIndex={self.props.index} key={i} />; 
       }
     });
     return (

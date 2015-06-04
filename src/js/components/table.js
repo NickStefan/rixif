@@ -1,6 +1,7 @@
 var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
+var COLHEADER = require('./colheader');
 
 var colHelpers = require('../stores/col-num-helpers');
 
@@ -90,15 +91,14 @@ var TABLE = React.createClass({
       )
     });
       
-    var rowsHeaders = this.props.table.get('rows').first().get('cells')
+    var columnHeaders = this.props.table.get('rows').first().get('cells')
       .toArray()
       // mutable array of immutables
       .concat(null)
       .slice()
       .map(function(row,colIndex){
         return (
-          <th key={colIndex} 
-           className={"r-spreadsheet"}>{colHelpers.getAlphaHeader(colIndex)}</th>
+          <COLHEADER key={colIndex} colIndex={colIndex} />
         )
     });
 
@@ -107,7 +107,7 @@ var TABLE = React.createClass({
        onKeyDown={this.navigate} className={"r-spreadsheet"}>
         <thead>
           <tr>
-            {rowsHeaders}
+            {columnHeaders}
           </tr>
         </thead>
         <tbody>

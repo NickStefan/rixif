@@ -3,6 +3,10 @@ body {
   margin: 0;
 }
 
+.ribbon-bar {
+  min-width: 850px;
+}
+
 table.r-spreadsheet {
   margin: 10px 0px 0px 0px;
   border-collapse: separate;
@@ -66,7 +70,7 @@ tbody > tr > th.r-spreadsheet {
 }
 
 .r-cell-view {
-  width: 80px;
+  min-width: 80px;
   height: 20px;
   padding: 2px 2px 2px 5px;
   margin: 5px;

@@ -55,7 +55,7 @@ var RIBBONBAR = React.createClass({
     <input placeholder="ex: green" onKeyDown={this.colorCell} type="text" />
     */
     return (
-      <div>
+      <div className="ribbon-bar">
         <button onClick={this.addCol}> new col </button>
         <input className={'addCol'} type='text' placeholder='col index'/>
         <button onClick={this.rmCol}> remove col </button>
