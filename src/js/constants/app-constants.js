@@ -14,6 +14,7 @@ module.exports = {
     editing: 'editing',
     enterEditMode: 'enterEditMode',
     move: 'move',
+    renderMenu: 'renderMenu',
 
     
     changeCell: 'changeCell',
@@ -24,7 +25,8 @@ module.exports = {
     selected: 'selected',
     editing: 'editing',
     enterEditMode: 'enterEditMode',
-    move: 'move'
+    move: 'move',
+    renderMenu:'renderMenu',
   },
 
   reverse: {

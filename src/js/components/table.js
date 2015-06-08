@@ -87,6 +87,7 @@ var TABLE = React.createClass({
       return (
         <ROW key={i} row={rowData} 
          state={ self.props.tableState.get('rows').get(i) }
+         tableState={ self.props.tableState }
          index={i} />
       )
     });
@@ -98,7 +99,7 @@ var TABLE = React.createClass({
       .slice()
       .map(function(row,colIndex){
         return (
-          <COLHEADER key={colIndex} colIndex={colIndex} />
+          <COLHEADER key={colIndex} tableState={ self.props.tableState } colIndex={colIndex} realIndex={colIndex - 1} />
         )
     });
 

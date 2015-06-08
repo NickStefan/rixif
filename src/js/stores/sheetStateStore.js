@@ -26,6 +26,7 @@ var defaultTable = function(rows,cols) {
   cols = cols || 10;
   return Immutable.Map({
     rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
+    contextMenuOpen: "",
     cellInEditMode: false,
     lastSelected: Immutable.Map({
       row: 1,
@@ -43,6 +44,11 @@ var table = defaultTable();
 /////////////////////////////
 // Private State Methods
 var stateMethods = {
+
+  _renderMenu: function(table, componentName){
+    return table.set('contextMenuOpen', componentName);
+  },
+
   _addCol: function(table, index) {
     len = table.get('rows').first().get('cells').size;
     index = index !== undefined ? index : len;

@@ -28263,7 +28263,7 @@ var AppActions = _.mapValues(ActionTypes, function(fnName){
 module.exports = AppActions;
 
 
-},{"../actions/command-manager":82,"../constants/app-constants":90,"../dispatchers/app-dispatcher":91,"lodash/lang/toArray":67,"lodash/object/extend":69,"lodash/object/has":70,"lodash/object/mapValues":73}],82:[function(require,module,exports){
+},{"../actions/command-manager":82,"../constants/app-constants":92,"../dispatchers/app-dispatcher":93,"lodash/lang/toArray":67,"lodash/object/extend":69,"lodash/object/has":70,"lodash/object/mapValues":73}],82:[function(require,module,exports){
 
 var LocalCommandManager = function(AppDispatcher, io){
 
@@ -28388,7 +28388,7 @@ var APP = React.createClass({displayName: "APP",
 module.exports = APP;
 
 
-},{"../stores/app-store":93,"./ribbonbar.js":86,"./table":89,"react/dist/react-with-addons.js":80}],84:[function(require,module,exports){
+},{"../stores/app-store":95,"./ribbonbar.js":88,"./table":91,"react/dist/react-with-addons.js":80}],84:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 var classSet = React.addons.classSet;
 var AppActions = require('../actions/app-actions');
@@ -28547,16 +28547,97 @@ var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
 var colHelpers = require('../stores/col-num-helpers');
 
+var MenuItem = require('./menuitem');
+var ContextMenu = require('./contextmenu');
+
 var COLHEADER = React.createClass({displayName: "COLHEADER",
+  renderMenu: function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({
+      menuStyle: {
+          position: 'absolute',
+          backgroundColor: 'grey',
+          zIndex: 10,
+          top: e.clientY,
+          left: e.clientX
+        }
+    });
+    AppActions.renderMenu('COLHEADER' + this.props.realIndex);
+  },
+
+  componentWillReceiveProps: function(nextProps){
+    if (nextProps.tableState.get('contextMenuOpen') === 'COLHEADER' + this.props.realIndex){
+      this.setState({
+        displayMenu: true
+      });
+    } else if (this.state && this.state.displayMenu && nextProps.tableState.get('contextMenuOpen') !== 'COLHEADER' + this.props.realIndex){
+      this.setState({
+        displayMenu: false
+      });
+    }
+  },
+
   render: function(){
+    var menu = null;
+    var displayIndex = this.props.realIndex + 1;
+    if (this.state && this.state.displayMenu){
+      menu = (
+          React.createElement(ContextMenu, {style: this.state.menuStyle}, 
+            React.createElement(MenuItem, {label: "Insert Col Before", command: "addCol", commandArgs: [this.props.realIndex]}), 
+            React.createElement(MenuItem, {label: "Insert Col After", command: "addCol", commandArgs: [this.props.readlIndex + 1]}), 
+            React.createElement(MenuItem, {label: "Remove Col", command: "rmCol", commandArgs: [this.props.realIndex]})
+          )
+      );
+    }
     var colName = colHelpers.getAlphaHeader(this.props.colIndex);
-    return React.createElement("th", {className: "r-spreadsheet"}, colName);
+    return (
+      React.createElement("th", {className: "r-spreadsheet", onContextMenu: this.renderMenu}, 
+        colName, 
+        menu
+      )
+    );
   }
 });
 
 module.exports = COLHEADER;
 
-},{"../actions/app-actions":81,"../stores/col-num-helpers":94,"react/dist/react-with-addons.js":80}],86:[function(require,module,exports){
+},{"../actions/app-actions":81,"../stores/col-num-helpers":96,"./contextmenu":86,"./menuitem":87,"react/dist/react-with-addons.js":80}],86:[function(require,module,exports){
+var React = require('react/dist/react-with-addons.js');
+var AppActions = require('../actions/app-actions');
+
+var CONTEXTMENU = React.createClass({displayName: "CONTEXTMENU",
+  render: function(){
+    return (
+      React.createElement("ul", {style: this.props.style}, 
+         this.props.children
+      )
+    );
+  }
+});
+
+module.exports = CONTEXTMENU;
+
+},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],87:[function(require,module,exports){
+var React = require('react/dist/react-with-addons.js');
+var AppActions = require('../actions/app-actions');
+
+var MENUITEM = React.createClass({displayName: "MENUITEM",
+  handleClick: function(){
+    AppActions[this.props.command].apply(this, this.props.commandArgs);
+  },
+  render: function(){
+    return (
+      React.createElement("li", {onClick: this.handleClick}, 
+         this.props.label
+      )
+    );
+  }
+});
+
+module.exports = MENUITEM;
+
+},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],88:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 
 var AppActions = require('../actions/app-actions');
@@ -28633,7 +28714,7 @@ var RIBBONBAR = React.createClass({displayName: "RIBBONBAR",
 module.exports = RIBBONBAR;
 
 
-},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],87:[function(require,module,exports){
+},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],89:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 
 var CELL = require('./cell');
@@ -28647,7 +28728,7 @@ var ROW = React.createClass({displayName: "ROW",
       // mutable array of immutables
       .map(function(cellData,i){
       if (i === 0){
-        return React.createElement(ROWHEADER, {key: i, realIndex: self.props.index});
+        return React.createElement(ROWHEADER, {key: i, tableState: self.props.tableState, realIndex: self.props.index});
       } else {
         return React.createElement(CELL, {cellData: cellData, state:  self.props.state.get('cells').get(i-1), colIndex: i-1, rowIndex: self.props.index, key: i}); 
       }
@@ -28660,6 +28741,7 @@ var ROW = React.createClass({displayName: "ROW",
   },
   shouldComponentUpdate: function(nextProps,nextState){
     if (this.props.state === nextProps.state &&
+        this.props.tableState === nextProps.tableState &&
         this.props.row === nextProps.row) {
       return false;
     }
@@ -28670,37 +28752,55 @@ var ROW = React.createClass({displayName: "ROW",
 module.exports = ROW;
 
 
-},{"./cell":84,"./rowheader":88,"react/dist/react-with-addons.js":80}],88:[function(require,module,exports){
+},{"./cell":84,"./rowheader":90,"react/dist/react-with-addons.js":80}],90:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
 
-var ROWHEADER = React.createClass({displayName: "ROWHEADER",
-  // renderMenu: function(e){
-  //   e.preventDefault();
-  //   e.stopPropagation();
+var MenuItem = require('./menuitem');
+var ContextMenu = require('./contextmenu');
 
-  //   this.setState({
-  //     displayMenu: true,
-  //     menuStyle: {
-  //       position: absolute,
-  //       zIndex: 10,
-  //       top: e.clientX,
-  //       left: e.clientY
-  //     }
-  //   });
-  // },
+var ROWHEADER = React.createClass({displayName: "ROWHEADER",
+  renderMenu: function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({
+      menuStyle: {
+          position: 'absolute',
+          backgroundColor: 'grey',
+          zIndex: 10,
+          top: e.clientY,
+          left: e.clientX
+        }
+    });
+    AppActions.renderMenu('ROWHEADER' + this.props.realIndex);
+  },
+
+  componentWillReceiveProps: function(nextProps){
+    if (nextProps.tableState.get('contextMenuOpen') === 'ROWHEADER' + this.props.realIndex){
+      this.setState({
+        displayMenu: true
+      });
+    } else if (this.state && this.state.displayMenu && nextProps.tableState.get('contextMenuOpen') !== 'ROWHEADER' + this.props.realIndex){
+      this.setState({
+        displayMenu: false
+      });
+    }
+  },
 
   render: function(){
     var menu = null;
     var displayIndex = this.props.realIndex + 1;
-    // if (this.state.displayMenu){
-    //   menu = (
-    //       <Menu style={this.state.menuStyle}}>
-    //       </Menu>
-    //   );
-    // }
+    if (this.state && this.state.displayMenu){
+      menu = (
+          React.createElement(ContextMenu, {style: this.state.menuStyle}, 
+            React.createElement(MenuItem, {label: "Insert Row Before", command: "addRow", commandArgs: [this.props.realIndex]}), 
+            React.createElement(MenuItem, {label: "Insert Row After", command: "addRow", commandArgs: [this.props.readlIndex + 1]}), 
+            React.createElement(MenuItem, {label: "Remove Row", command: "rmRow", commandArgs: [this.props.realIndex]})
+          )
+      );
+    }
     return (
-      React.createElement("th", {className: "r-spreadsheet"}, 
+      React.createElement("th", {className: "r-spreadsheet", onContextMenu: this.renderMenu}, 
         displayIndex, 
         menu 
       )
@@ -28710,7 +28810,7 @@ var ROWHEADER = React.createClass({displayName: "ROWHEADER",
 
 module.exports = ROWHEADER;
 
-},{"../actions/app-actions":81,"react/dist/react-with-addons.js":80}],89:[function(require,module,exports){
+},{"../actions/app-actions":81,"./contextmenu":86,"./menuitem":87,"react/dist/react-with-addons.js":80}],91:[function(require,module,exports){
 var React = require('react/dist/react-with-addons.js');
 var AppActions = require('../actions/app-actions');
 var ROW = require('./row');
@@ -28800,6 +28900,7 @@ var TABLE = React.createClass({displayName: "TABLE",
       return (
         React.createElement(ROW, {key: i, row: rowData, 
          state:  self.props.tableState.get('rows').get(i), 
+         tableState:  self.props.tableState, 
          index: i})
       )
     });
@@ -28811,7 +28912,7 @@ var TABLE = React.createClass({displayName: "TABLE",
       .slice()
       .map(function(row,colIndex){
         return (
-          React.createElement(COLHEADER, {key: colIndex, colIndex: colIndex})
+          React.createElement(COLHEADER, {key: colIndex, tableState:  self.props.tableState, colIndex: colIndex, realIndex: colIndex - 1})
         )
     });
 
@@ -28846,7 +28947,7 @@ var TABLE = React.createClass({displayName: "TABLE",
 module.exports = TABLE;
 
 
-},{"../actions/app-actions":81,"../stores/col-num-helpers":94,"./colheader":85,"./row":87,"react/dist/react-with-addons.js":80}],90:[function(require,module,exports){
+},{"../actions/app-actions":81,"../stores/col-num-helpers":96,"./colheader":85,"./row":89,"react/dist/react-with-addons.js":80}],92:[function(require,module,exports){
 module.exports = {
   ActionTypes: {
 
@@ -28863,6 +28964,7 @@ module.exports = {
     editing: 'editing',
     enterEditMode: 'enterEditMode',
     move: 'move',
+    renderMenu: 'renderMenu',
 
     
     changeCell: 'changeCell',
@@ -28873,7 +28975,8 @@ module.exports = {
     selected: 'selected',
     editing: 'editing',
     enterEditMode: 'enterEditMode',
-    move: 'move'
+    move: 'move',
+    renderMenu:'renderMenu',
   },
 
   reverse: {
@@ -28889,7 +28992,7 @@ module.exports = {
   }
 };
 
-},{}],91:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 var Dispatcher = require('flux').Dispatcher;
 var AppConstants = require('../constants/app-constants');
 var ActionTypes = AppConstants.ActionTypes;
@@ -28911,7 +29014,7 @@ var AppDispatcher = _.mapValues(ActionTypes,function(fnName){
 module.exports = _.extend(new Dispatcher, AppDispatcher);
 
 
-},{"../constants/app-constants":90,"flux":1,"lodash/object/extend":69,"lodash/object/mapValues":73}],92:[function(require,module,exports){
+},{"../constants/app-constants":92,"flux":1,"lodash/object/extend":69,"lodash/object/mapValues":73}],94:[function(require,module,exports){
 
 var RIXIF = require('./components/app');
 
@@ -28919,7 +29022,7 @@ module.exports = RIXIF;
 
 
 
-},{"./components/app":83}],93:[function(require,module,exports){
+},{"./components/app":83}],95:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 var _ = {
   extend: require('lodash/object/extend')
@@ -28962,6 +29065,7 @@ var AppStore = _.extend(EventEmitter.prototype, {
 // from dispatcher to store methods
 AppStore.dispatchToken = AppDispatcher.register(function(payload){
   var action = payload.action;
+
   switch(action.type) {
 
     // state and data changes
@@ -29009,6 +29113,10 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
       sheetState = sheetStateMethods._move(sheetState, payload.action.args);
       break;
 
+    case ActionTypes.renderMenu:
+      sheetState = sheetStateMethods._renderMenu(sheetState, payload.action.args);
+      break;
+
     default:
       // do nothing
   }
@@ -29018,7 +29126,7 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
 
 module.exports = AppStore;
 
-},{"../constants/app-constants":90,"../dispatchers/app-dispatcher":91,"../stores/sheetDataStore":96,"../stores/sheetStateStore":97,"events":4,"lodash/object/extend":69}],94:[function(require,module,exports){
+},{"../constants/app-constants":92,"../dispatchers/app-dispatcher":93,"../stores/sheetDataStore":98,"../stores/sheetStateStore":99,"events":4,"lodash/object/extend":69}],96:[function(require,module,exports){
 /////////////////////////////
 // Header and Col Letter to Number Calculations 
 
@@ -29075,7 +29183,7 @@ module.exports = {
 }
 
 
-},{}],95:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 var _ = {
   toArray: require('lodash/lang/toArray'),
   isNumber: require('lodash/lang/isNumber'),
@@ -29230,7 +29338,7 @@ var formulas = {
 
 module.exports = formulas;
 
-},{"lodash/array/flatten":6,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/collection/some":10,"lodash/lang/isNumber":63,"lodash/lang/toArray":67}],96:[function(require,module,exports){
+},{"lodash/array/flatten":6,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/collection/some":10,"lodash/lang/isNumber":63,"lodash/lang/toArray":67}],98:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
@@ -29372,6 +29480,7 @@ var storeMethods = {
   },
 
   _addRow: function(table, index) {
+    console.log(index)
     var self = this;
     len = table.get('rows').size - 1;
     index = index !== undefined ? index : len;
@@ -29743,14 +29852,14 @@ var storeMethods = {
           if (action === 'add'){
             depObj.row2 = parseInt(depObj.row2) + 1;
           } else if (action === 'remove'){
-            depObj.row2 = depObj.row2 - 1;
+            depObj.row2 = parseInt(depObj.row2) - 1;
           }
         }
         if (rowOrCol === 'col' && changedIndex >= depObj.col1 && changedIndex <= depObj.col2){
           if (action === 'add'){
-            depObj.col2 = depObj.col2 + 1;
+            depObj.col2 = parseInt(depObj.col2) + 1;
           } else if (action === 'remove'){
-            depObj.col2 = depObj.col2 - 1;
+            depObj.col2 = parseInt(depObj.col2) - 1;
           }
         }
         return depObj;
@@ -30235,7 +30344,7 @@ module.exports = {
   table: table
 };
 
-},{"../stores/col-num-helpers":94,"../stores/formulas":95,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],97:[function(require,module,exports){
+},{"../stores/col-num-helpers":96,"../stores/formulas":97,"immutable":5,"lodash/array/flatten":6,"lodash/array/uniq":7,"lodash/collection/every":8,"lodash/collection/forEach":9,"lodash/lang/isBoolean":61,"lodash/lang/isUndefined":66,"lodash/object/has":70,"lodash/object/mapValues":73,"lodash/utility/range":79}],99:[function(require,module,exports){
 var Immutable = require('immutable');
 var _ = {
   range: require('lodash/utility/range'),
@@ -30264,6 +30373,7 @@ var defaultTable = function(rows,cols) {
   cols = cols || 10;
   return Immutable.Map({
     rows: Immutable.List(_.range(0,rows).map(function(){ return defaultRow(cols); })),
+    contextMenuOpen: "",
     cellInEditMode: false,
     lastSelected: Immutable.Map({
       row: 1,
@@ -30281,6 +30391,11 @@ var table = defaultTable();
 /////////////////////////////
 // Private State Methods
 var stateMethods = {
+
+  _renderMenu: function(table, componentName){
+    return table.set('contextMenuOpen', componentName);
+  },
+
   _addCol: function(table, index) {
     len = table.get('rows').first().get('cells').size;
     index = index !== undefined ? index : len;
@@ -30419,4 +30534,4 @@ module.exports = {
   table: table
 }
 
-},{"immutable":5,"lodash/lang/isUndefined":66,"lodash/object/mapValues":73,"lodash/utility/range":79}]},{},[92])
+},{"immutable":5,"lodash/lang/isUndefined":66,"lodash/object/mapValues":73,"lodash/utility/range":79}]},{},[94])

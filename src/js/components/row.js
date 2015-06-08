@@ -11,7 +11,7 @@ var ROW = React.createClass({
       // mutable array of immutables
       .map(function(cellData,i){
       if (i === 0){
-        return <ROWHEADER key={i} realIndex={self.props.index} />;
+        return <ROWHEADER key={i} tableState={self.props.tableState} realIndex={self.props.index} />;
       } else {
         return <CELL cellData={cellData} state={ self.props.state.get('cells').get(i-1) } colIndex={i-1} rowIndex={self.props.index} key={i} />; 
       }
@@ -24,6 +24,7 @@ var ROW = React.createClass({
   },
   shouldComponentUpdate: function(nextProps,nextState){
     if (this.props.state === nextProps.state &&
+        this.props.tableState === nextProps.tableState &&
         this.props.row === nextProps.row) {
       return false;
     }

@@ -40,6 +40,7 @@ var AppStore = _.extend(EventEmitter.prototype, {
 // from dispatcher to store methods
 AppStore.dispatchToken = AppDispatcher.register(function(payload){
   var action = payload.action;
+
   switch(action.type) {
 
     // state and data changes
@@ -85,6 +86,10 @@ AppStore.dispatchToken = AppDispatcher.register(function(payload){
 
     case ActionTypes.move:
       sheetState = sheetStateMethods._move(sheetState, payload.action.args);
+      break;
+
+    case ActionTypes.renderMenu:
+      sheetState = sheetStateMethods._renderMenu(sheetState, payload.action.args);
       break;
 
     default:

@@ -139,6 +139,7 @@ var storeMethods = {
   },
 
   _addRow: function(table, index) {
+    console.log(index)
     var self = this;
     len = table.get('rows').size - 1;
     index = index !== undefined ? index : len;
