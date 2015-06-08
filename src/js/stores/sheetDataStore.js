@@ -69,6 +69,7 @@ var storeMethods = {
       if (col >= addedCol){
         col = col + 1;
       }
+      debugger
       table = self._rewriteFormula(table, row, col, addedCol, 'col', 'add');
     });
 
@@ -82,6 +83,12 @@ var storeMethods = {
     return table;
   },
 
+  // TODO dependency chain is not updating after removing a column
+  // the first formula dependent on that column removes works
+  // other columns with formulas dependent on that first formula updated
+  // are not being updated
+  // need to pass an offset option to the cleariDep???
+  
   _rmCol: function(table, index) {
     var self = this;
     len = table.get('rows').first().get('cells').size - 1;
@@ -117,6 +124,7 @@ var storeMethods = {
       if (col > removedCol){
         col = col - 1;
       }
+      debugger
       table = self._rewriteFormula(table, row, col, removedCol, 'col', 'remove');
     });
 
@@ -232,7 +240,7 @@ var storeMethods = {
     var oldCol = rowOrCol === 'col' && col >= changedIndex ? oldCoord[action](col) : col;
 
     // remove old iDepOn dependencies after moving the row or col
-    table = this._cleariDepOn(table, row, col, oldRow, oldCol);
+    table = this._cleariDepOn(table, row, col, oldRow, oldCol, changedIndex, rowOrCol, action);
 
     // recalc the iDepOn and depOnMe
     table = this._parseFormula(table, row, col, formulaStr, {skipCircleChecks: false});
@@ -374,7 +382,7 @@ var storeMethods = {
       if (rowOrCol === 'row' && changedIndex >= row1 && changedIndex <= row2){
         return true;
       }
-      if (rowOrCol === 'col' && changedIndex >= col1 && changedIndex <= col2){
+      if (rowOrCol === 'col' && changedIndex >= letterToNumber(col1) && changedIndex <= letterToNumber(col2)){
         return true;
       }
       return false;
@@ -438,7 +446,8 @@ var storeMethods = {
 
   },
 
-  _cleariDepOn: function(table, targetRow, targetCol, rowRef, colRef){
+  _cleariDepOn: function(table, targetRow, targetCol, rowRef, colRef, changedIndex, rowOrCol, action){
+
     // for all the cells iDepOn, remove me from their depOnMe
     // as cells iDepOn may change: i might have a different formula or no longer be a formula
     var iDepOn = table.getIn(['rows',targetRow,'cells',targetCol,'iDepOn'],[]);
@@ -462,9 +471,30 @@ var storeMethods = {
       });
     }
     function filterOutSingle(table, depObj){
+      depObj = translateSingle(depObj);
       return filterOut(table, depObj.row, depObj.col);
+
+      function translateSingle(depObj){
+        if (!changedIndex) return depObj;
+
+        if (rowOrCol === 'row' && depObj.row >= changedIndex){
+          if (action === 'add'){
+            depObj.row = parseInt(depObj.row) + 1;
+          } else if (action === 'remove'){
+            depObj.row = parseInt(depObj.row) - 1;
+          }
+        } else if (rowOrCol === 'col' && depObj.col >= changedIndex){
+          if (action === 'add'){
+            depObj.col = parseInt(depObj.col) + 1;
+          } else if (action === 'remove'){
+            depObj.col = parseInt(depObj.col) - 1;
+          }
+        }
+        return depObj;
+      }
     }
     function filterOutArrayOrTable(table, depObj){
+      depObj = translateArrayOrTable(depObj);
       _.range(depObj.col1, parseInt(depObj.col2) + 1)
       .forEach(function(colVal){
         _.range(depObj.row1, parseInt(depObj.row2) + 1)
@@ -473,7 +503,27 @@ var storeMethods = {
         });
       });
       return table;
+      function translateArrayOrTable(depObj){
+        if (!changedIndex) return depObj;
+
+        if (rowOrCol === 'row' && changedIndex >= depObj.row1 && changedIndex <= depObj.row2){
+          if (action === 'add'){
+            depObj.row2 = parseInt(depObj.row2) + 1;
+          } else if (action === 'remove'){
+            depObj.row2 = parseInt(depObj.row2) - 1;
+          }
+        }
+        if (rowOrCol === 'col' && changedIndex >= depObj.col1 && changedIndex <= depObj.col2){
+          if (action === 'add'){
+            depObj.col2 = parseInt(depObj.col2) + 1;
+          } else if (action === 'remove'){
+            depObj.col2 = parseInt(depObj.col2) - 1;
+          }
+        }
+        return depObj;
+      }
     }
+
   },
 
 
@@ -944,6 +994,8 @@ storeMethods = _.mapValues(storeMethods, function(fn,fnName,classObj) {
     return fn.apply(classObj, args);
   };
 });
+
+window.table = table;
 
 module.exports = {
   storeMethods: storeMethods,
